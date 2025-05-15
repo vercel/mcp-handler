@@ -3,7 +3,7 @@ import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import {
   type IncomingHttpHeaders,
   IncomingMessage,
-  ServerResponse,
+  type ServerResponse,
 } from "node:http";
 import { createClient } from "redis";
 import { Socket } from "node:net";
@@ -12,158 +12,14 @@ import type { ServerOptions } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { BodyType } from "./server-response-adapter";
 import assert from "node:assert";
-import {
-  type McpEvent,
-  type McpErrorEvent,
-  type McpSessionEvent,
-  type McpToolEvent,
-  type McpFunctionEvent,
-  createEvent,
+import type {
+  McpEvent,
+  McpErrorEvent,
+  McpSessionEvent,
+  McpRequestEvent,
 } from "../lib/log-helper";
-
-// Helper class to wrap ServerResponse and emit events
-class EventEmittingResponse extends ServerResponse {
-  private onEvent?: (event: McpEvent) => void;
-  private sessionId?: string;
-  private requestId: string;
-  private startTime: number;
-
-  constructor(
-    req: IncomingMessage,
-    onEvent?: (event: McpEvent) => void,
-    sessionId?: string
-  ) {
-    super(req);
-    this.onEvent = onEvent;
-    this.sessionId = sessionId;
-    this.requestId = crypto.randomUUID();
-    this.startTime = Date.now();
-  }
-
-  emitEvent(event: Omit<McpEvent, "timestamp" | "sessionId" | "requestId">) {
-    if (this.onEvent) {
-      this.onEvent(
-        createEvent({
-          ...event,
-          sessionId: this.sessionId,
-          requestId: this.requestId,
-        } as Omit<McpEvent, "timestamp">)
-      );
-    }
-  }
-
-  startSession(
-    transport: "SSE" | "HTTP",
-    clientInfo?: { userAgent?: string; ip?: string }
-  ) {
-    this.emitEvent({
-      type: "SESSION_STARTED",
-      transport,
-      clientInfo,
-    } as Omit<McpSessionEvent, "timestamp" | "sessionId" | "requestId">);
-  }
-
-  endSession(transport: "SSE" | "HTTP") {
-    this.emitEvent({
-      type: "SESSION_ENDED",
-      transport,
-    } as Omit<McpSessionEvent, "timestamp" | "sessionId" | "requestId">);
-  }
-
-  startToolExecution(toolName: string, parameters?: unknown) {
-    this.emitEvent({
-      type: "TOOL_CALLED",
-      toolName,
-      parameters,
-      status: "success",
-    } as Omit<McpToolEvent, "timestamp" | "sessionId" | "requestId">);
-  }
-
-  completeToolExecution(
-    toolName: string,
-    result?: unknown,
-    error?: Error | string
-  ) {
-    this.emitEvent({
-      type: "TOOL_COMPLETED",
-      toolName,
-      result,
-      duration: Date.now() - this.startTime,
-      status: error ? "error" : "success",
-    } as Omit<McpToolEvent, "timestamp" | "sessionId" | "requestId">);
-
-    if (error) {
-      this.error(error, `Error executing tool ${toolName}`, "tool");
-    }
-  }
-
-  startFunctionExecution(functionName: string, parameters?: unknown) {
-    this.emitEvent({
-      type: "FUNCTION_CALLED",
-      functionName,
-      parameters,
-      status: "success",
-    } as Omit<McpFunctionEvent, "timestamp" | "sessionId" | "requestId">);
-  }
-
-  completeFunctionExecution(
-    functionName: string,
-    result?: unknown,
-    error?: Error | string
-  ) {
-    this.emitEvent({
-      type: "FUNCTION_COMPLETED",
-      functionName,
-      result,
-      duration: Date.now() - this.startTime,
-      status: error ? "error" : "success",
-    } as Omit<McpFunctionEvent, "timestamp" | "sessionId" | "requestId">);
-
-    if (error) {
-      this.error(error, `Error executing function ${functionName}`, "function");
-    }
-  }
-
-  error(
-    error: Error | string,
-    context?: string,
-    source: McpErrorEvent["source"] = "system",
-    severity: McpErrorEvent["severity"] = "error"
-  ) {
-    this.emitEvent({
-      type: "ERROR",
-      error,
-      context,
-      source,
-      severity,
-    } as Omit<McpErrorEvent, "timestamp" | "sessionId" | "requestId">);
-  }
-
-  end(
-    chunk?: unknown,
-    encoding?: BufferEncoding | (() => void),
-    cb?: () => void
-  ): this {
-    let finalChunk = chunk;
-    let finalEncoding = encoding;
-    let finalCallback = cb;
-
-    if (typeof chunk === "function") {
-      finalCallback = chunk as () => void;
-      finalChunk = undefined;
-      finalEncoding = undefined;
-    } else if (typeof encoding === "function") {
-      finalCallback = encoding as () => void;
-      finalEncoding = undefined;
-    }
-
-    return super.end(
-      finalChunk as string | Buffer,
-      finalEncoding as BufferEncoding,
-      finalCallback
-    );
-  }
-}
+import { createEvent } from "../lib/log-helper";
+import { EventEmittingResponse } from "../lib/event-emitter.js";
 
 interface SerializedRequest {
   requestId: string;
@@ -392,14 +248,6 @@ export function initializeMcpApiHandler(
     if (url.pathname === streamableHttpEndpoint) {
       if (req.method === "GET") {
         logger.log("Received GET MCP request");
-        const eventRes = new EventEmittingResponse(
-          createFakeIncomingMessage(),
-          config.onEvent
-        );
-        eventRes.error(
-          "Method not allowed",
-          "HTTP GET request received on streamable HTTP endpoint"
-        );
         res.writeHead(405).end(
           JSON.stringify({
             jsonrpc: "2.0",
@@ -414,16 +262,6 @@ export function initializeMcpApiHandler(
       }
       if (req.method === "DELETE") {
         logger.log("Received DELETE MCP request");
-        const eventRes = new EventEmittingResponse(
-          createFakeIncomingMessage(),
-          config.onEvent
-        );
-        eventRes.error(
-          "Method not allowed",
-          "HTTP DELETE request received on streamable HTTP endpoint",
-          "session",
-          "error"
-        );
         res.writeHead(405).end(
           JSON.stringify({
             jsonrpc: "2.0",
@@ -438,18 +276,10 @@ export function initializeMcpApiHandler(
       }
 
       if (req.method === "POST") {
-        logger.log("Got new MCP connection", req.url, req.method);
         const eventRes = new EventEmittingResponse(
           createFakeIncomingMessage(),
           config.onEvent
         );
-        eventRes.startSession("HTTP", {
-          userAgent: req.headers.get("user-agent") ?? undefined,
-          ip:
-            req.headers.get("x-forwarded-for") ??
-            req.headers.get("x-real-ip") ??
-            undefined,
-        });
 
         if (!statelessServer) {
           statelessServer = new McpServer(
@@ -473,18 +303,6 @@ export function initializeMcpApiHandler(
           bodyContent = await req.text();
         }
 
-        // If it's a function call
-        if (
-          typeof bodyContent === "object" &&
-          bodyContent &&
-          "method" in bodyContent
-        ) {
-          eventRes.startFunctionExecution(
-            bodyContent.method as string,
-            bodyContent.params
-          );
-        }
-
         const incomingRequest = createFakeIncomingMessage({
           method: req.method,
           url: req.url,
@@ -499,7 +317,32 @@ export function initializeMcpApiHandler(
         );
         Object.assign(wrappedRes, res);
 
-        await statelessTransport.handleRequest(incomingRequest, wrappedRes);
+        try {
+          await statelessTransport.handleRequest(incomingRequest, wrappedRes);
+          if (
+            typeof bodyContent === "object" &&
+            bodyContent &&
+            "method" in bodyContent
+          ) {
+            eventRes.requestCompleted(
+              bodyContent.method as string,
+              bodyContent
+            );
+          }
+        } catch (error) {
+          if (
+            typeof bodyContent === "object" &&
+            bodyContent &&
+            "method" in bodyContent
+          ) {
+            eventRes.requestCompleted(
+              bodyContent.method as string,
+              undefined,
+              error instanceof Error ? error : String(error)
+            );
+          }
+          throw error;
+        }
       }
     } else if (url.pathname === sseEndpoint) {
       const { redis, redisPublisher } = await initializeRedis({
@@ -560,18 +403,6 @@ export function initializeMcpApiHandler(
         logInContext("log", "Received message from Redis", message);
         const request = JSON.parse(message) as SerializedRequest;
 
-        // If it's a function call
-        if (
-          typeof request.body === "object" &&
-          request.body &&
-          "method" in request.body
-        ) {
-          eventRes.startFunctionExecution(
-            request.body.method as string,
-            request.body.params
-          );
-        }
-
         // Make in IncomingMessage object because that is what the SDK expects.
         const req = createFakeIncomingMessage({
           method: request.method,
@@ -607,15 +438,9 @@ export function initializeMcpApiHandler(
           ) {
             try {
               const result = JSON.parse(body);
-              eventRes.completeFunctionExecution(
-                request.body.method as string,
-                result
-              );
+              eventRes.requestCompleted(request.body.method as string, result);
             } catch {
-              eventRes.completeFunctionExecution(
-                request.body.method as string,
-                body
-              );
+              eventRes.requestCompleted(request.body.method as string, body);
             }
           }
         } catch (error) {

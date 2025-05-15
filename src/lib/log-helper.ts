@@ -1,10 +1,8 @@
 export type McpEventType =
   | "SESSION_STARTED" // When a new client session begins (either HTTP or SSE)
   | "SESSION_ENDED" // When a client session ends (SSE disconnection)
-  | "TOOL_CALLED" // When a tool is invoked by the client
-  | "TOOL_COMPLETED" // When a tool execution completes
-  | "FUNCTION_CALLED" // When a function is called by the client
-  | "FUNCTION_COMPLETED" // When a function call completes
+  | "REQUEST_RECEIVED" // When a request is received from the client
+  | "REQUEST_COMPLETED" // When a request completes
   | "ERROR"; // When an error occurs during any operation
 
 export interface McpEventBase {
@@ -23,21 +21,12 @@ export interface McpSessionEvent extends McpEventBase {
   };
 }
 
-export interface McpToolEvent extends McpEventBase {
-  type: "TOOL_CALLED" | "TOOL_COMPLETED";
-  toolName: string;
+export interface McpRequestEvent extends McpEventBase {
+  type: "REQUEST_RECEIVED" | "REQUEST_COMPLETED";
+  method: string;
   parameters?: unknown;
   result?: unknown;
-  duration?: number; // For TOOL_COMPLETED events
-  status: "success" | "error";
-}
-
-export interface McpFunctionEvent extends McpEventBase {
-  type: "FUNCTION_CALLED" | "FUNCTION_COMPLETED";
-  functionName: string;
-  parameters?: unknown;
-  result?: unknown;
-  duration?: number; // For FUNCTION_COMPLETED events
+  duration?: number; // For REQUEST_COMPLETED events
   status: "success" | "error";
 }
 
@@ -45,15 +34,11 @@ export interface McpErrorEvent extends McpEventBase {
   type: "ERROR";
   error: Error | string;
   context?: string;
-  source: "tool" | "function" | "session" | "system";
+  source: "request" | "session" | "system";
   severity: "warning" | "error" | "fatal";
 }
 
-export type McpEvent =
-  | McpSessionEvent
-  | McpToolEvent
-  | McpFunctionEvent
-  | McpErrorEvent;
+export type McpEvent = McpSessionEvent | McpRequestEvent | McpErrorEvent;
 
 export function createEvent<T extends McpEvent>(
   event: Omit<T, "timestamp">
