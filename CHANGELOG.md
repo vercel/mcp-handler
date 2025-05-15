@@ -1,5 +1,15 @@
 # @vercel/mcp-adapter
 
+## 0.4.0
+
+### Minor Changes
+
+- 7fe14e6: make redis optional by only init on sse and messages
+
+### Patch Changes
+
+- 99d7837: fix release
+
 ## 0.2.4
 
 ### Patch Changes
