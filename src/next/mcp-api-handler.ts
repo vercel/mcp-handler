@@ -23,7 +23,15 @@ interface SerializedRequest {
 
 type LogLevel = 'log' | 'error' | 'warn' | 'info' | 'debug';
 
-function createLogger(verboseLogs = false) {
+type Logger = {
+  log: (...args: unknown[]) => void;
+  error: (...args: unknown[]) => void;
+  warn: (...args: unknown[]) => void;
+  info: (...args: unknown[]) => void;
+  debug: (...args: unknown[]) => void;
+};
+
+function createLogger(verboseLogs = false): Logger {
   return {
     log: (...args: unknown[]) => {
       if (verboseLogs) console.log(...args);
@@ -145,6 +153,36 @@ export function calculateEndpoints({
   };
 }
 
+let redisPublisher: ReturnType<typeof createClient>;
+let redis: ReturnType<typeof createClient>;
+
+async function initializeRedis({ redisUrl, logger }: { redisUrl?: string; logger: Logger }) {
+  if(redis && redisPublisher) {
+    return { redis, redisPublisher };
+  }
+
+  if(!redisUrl) {
+    throw new Error('redisUrl is required');
+  }
+
+  redis = createClient({
+    url: redisUrl,
+  });
+  redisPublisher = createClient({
+    url: redisUrl,
+  });
+  redis.on('error', err => {
+    logger.error('Redis error', err);
+  });
+  redisPublisher.on('error', err => {
+    logger.error('Redis error', err);
+  });
+
+  await Promise.all([redis.connect(), redisPublisher.connect()]);
+
+  return { redis, redisPublisher };
+}
+
 export function initializeMcpApiHandler(
   initializeServer: (server: McpServer) => void,
   serverOptions: ServerOptions = {},
@@ -178,19 +216,7 @@ export function initializeMcpApiHandler(
     });
 
   const logger = createLogger(verboseLogs);
-  const redis = createClient({
-    url: redisUrl,
-  });
-  const redisPublisher = createClient({
-    url: redisUrl,
-  });
-  redis.on('error', err => {
-    logger.error('Redis error', err);
-  });
-  redisPublisher.on('error', err => {
-    logger.error('Redis error', err);
-  });
-  const redisPromise = Promise.all([redis.connect(), redisPublisher.connect()]);
+  
 
   let servers: McpServer[] = [];
 
@@ -199,7 +225,6 @@ export function initializeMcpApiHandler(
     sessionIdGenerator: undefined,
   });
   return async function mcpApiHandler(req: Request, res: ServerResponse) {
-    await redisPromise;
     const url = new URL(req.url || '', 'https://example.com');
     if (url.pathname === streamableHttpEndpoint) {
       if (req.method === 'GET') {
@@ -265,6 +290,7 @@ export function initializeMcpApiHandler(
         await statelessTransport.handleRequest(incomingRequest, res);
       }
     } else if (url.pathname === sseEndpoint) {
+      const { redis, redisPublisher } = await initializeRedis({ redisUrl, logger });
       logger.log('Got new SSE connection');
       assert(sseMessageEndpoint, 'sseMessageEndpoint is required');
       const transport = new SSEServerTransport(sseMessageEndpoint, res);
@@ -387,6 +413,7 @@ export function initializeMcpApiHandler(
       logger.log(closeReason);
       await cleanup();
     } else if (url.pathname === sseMessageEndpoint) {
+      const { redis, redisPublisher } = await initializeRedis({ redisUrl, logger });
       logger.log('Received message');
 
       const body = await req.text();
