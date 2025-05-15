@@ -1,5 +1,11 @@
 # @vercel/mcp-adapter
 
+## 0.4.1
+
+### Patch Changes
+
+- c0d7675: add logging
+
 ## 0.4.0
 
 ### Minor Changes
