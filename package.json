@@ -30,7 +30,10 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "test": "vitest"
+    "test": "vitest",
+    "version-packages": "changeset version",
+    "changeset": "changeset",
+    "release": "pnpm build && changeset publish"
   },
   "keywords": [
     "mcp",
