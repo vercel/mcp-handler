@@ -1,17 +1,25 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import {
   type IncomingHttpHeaders,
   IncomingMessage,
-  ServerResponse,
-} from 'node:http';
-import { createClient } from 'redis';
-import { Socket } from 'node:net';
-import { Readable } from 'node:stream';
-import type { ServerOptions } from '@modelcontextprotocol/sdk/server/index.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import type { BodyType } from './server-response-adapter';
-import assert from 'node:assert';
+  type ServerResponse,
+} from "node:http";
+import { createClient } from "redis";
+import { Socket } from "node:net";
+import { Readable } from "node:stream";
+import type { ServerOptions } from "@modelcontextprotocol/sdk/server/index.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import type { BodyType } from "./server-response-adapter";
+import assert from "node:assert";
+import type {
+  McpEvent,
+  McpErrorEvent,
+  McpSessionEvent,
+  McpRequestEvent,
+} from "../lib/log-helper";
+import { createEvent } from "../lib/log-helper";
+import { EventEmittingResponse } from "../lib/event-emitter.js";
 
 interface SerializedRequest {
   requestId: string;
@@ -21,7 +29,7 @@ interface SerializedRequest {
   headers: IncomingHttpHeaders;
 }
 
-type LogLevel = 'log' | 'error' | 'warn' | 'info' | 'debug';
+type LogLevel = "log" | "error" | "warn" | "info" | "debug";
 
 type Logger = {
   log: (...args: unknown[]) => void;
@@ -102,6 +110,11 @@ export type Config = {
    * @default ""
    */
   basePath?: string;
+  /**
+   * Callback function that receives MCP events.
+   * This can be used to track analytics, debug issues, or implement custom behaviors.
+   */
+  onEvent?: (event: McpEvent) => void;
 };
 
 /**
@@ -115,7 +128,7 @@ function deriveEndpointsFromBasePath(basePath: string): {
   sseMessageEndpoint: string;
 } {
   // Remove trailing slash if present
-  const normalizedBasePath = basePath.replace(/\/$/, '');
+  const normalizedBasePath = basePath.replace(/\/$/, "");
 
   return {
     streamableHttpEndpoint: `${normalizedBasePath}/mcp`,
@@ -130,9 +143,9 @@ function deriveEndpointsFromBasePath(basePath: string): {
  */
 export function calculateEndpoints({
   basePath,
-  streamableHttpEndpoint = '/mcp',
-  sseEndpoint = '/sse',
-  sseMessageEndpoint = '/message',
+  streamableHttpEndpoint = "/mcp",
+  sseEndpoint = "/sse",
+  sseMessageEndpoint = "/message",
 }: Config) {
   const {
     streamableHttpEndpoint: fullStreamableHttpEndpoint,
@@ -156,13 +169,19 @@ export function calculateEndpoints({
 let redisPublisher: ReturnType<typeof createClient>;
 let redis: ReturnType<typeof createClient>;
 
-async function initializeRedis({ redisUrl, logger }: { redisUrl?: string; logger: Logger }) {
-  if(redis && redisPublisher) {
+async function initializeRedis({
+  redisUrl,
+  logger,
+}: {
+  redisUrl?: string;
+  logger: Logger;
+}) {
+  if (redis && redisPublisher) {
     return { redis, redisPublisher };
   }
 
-  if(!redisUrl) {
-    throw new Error('redisUrl is required');
+  if (!redisUrl) {
+    throw new Error("redisUrl is required");
   }
 
   redis = createClient({
@@ -171,11 +190,11 @@ async function initializeRedis({ redisUrl, logger }: { redisUrl?: string; logger
   redisPublisher = createClient({
     url: redisUrl,
   });
-  redis.on('error', err => {
-    logger.error('Redis error', err);
+  redis.on("error", (err) => {
+    logger.error("Redis error", err);
   });
-  redisPublisher.on('error', err => {
-    logger.error('Redis error', err);
+  redisPublisher.on("error", (err) => {
+    logger.error("Redis error", err);
   });
 
   await Promise.all([redis.connect(), redisPublisher.connect()]);
@@ -188,10 +207,10 @@ export function initializeMcpApiHandler(
   serverOptions: ServerOptions = {},
   config: Config = {
     redisUrl: process.env.REDIS_URL || process.env.KV_URL,
-    streamableHttpEndpoint: '/mcp',
-    sseEndpoint: '/sse',
-    sseMessageEndpoint: '/message',
-    basePath: '',
+    streamableHttpEndpoint: "/mcp",
+    sseEndpoint: "/sse",
+    sseMessageEndpoint: "/message",
+    basePath: "",
     maxDuration: 60,
     verboseLogs: false,
   }
@@ -216,7 +235,6 @@ export function initializeMcpApiHandler(
     });
 
   const logger = createLogger(verboseLogs);
-  
 
   let servers: McpServer[] = [];
 
@@ -224,31 +242,32 @@ export function initializeMcpApiHandler(
   const statelessTransport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
   });
+
   return async function mcpApiHandler(req: Request, res: ServerResponse) {
-    const url = new URL(req.url || '', 'https://example.com');
+    const url = new URL(req.url || "", "https://example.com");
     if (url.pathname === streamableHttpEndpoint) {
-      if (req.method === 'GET') {
-        logger.log('Received GET MCP request');
+      if (req.method === "GET") {
+        logger.log("Received GET MCP request");
         res.writeHead(405).end(
           JSON.stringify({
-            jsonrpc: '2.0',
+            jsonrpc: "2.0",
             error: {
               code: -32000,
-              message: 'Method not allowed.',
+              message: "Method not allowed.",
             },
             id: null,
           })
         );
         return;
       }
-      if (req.method === 'DELETE') {
-        logger.log('Received DELETE MCP request');
+      if (req.method === "DELETE") {
+        logger.log("Received DELETE MCP request");
         res.writeHead(405).end(
           JSON.stringify({
-            jsonrpc: '2.0',
+            jsonrpc: "2.0",
             error: {
               code: -32000,
-              message: 'Method not allowed.',
+              message: "Method not allowed.",
             },
             id: null,
           })
@@ -256,14 +275,17 @@ export function initializeMcpApiHandler(
         return;
       }
 
-      if (req.method === 'POST') {
-        logger.log('Got new MCP connection', req.url, req.method);
+      if (req.method === "POST") {
+        const eventRes = new EventEmittingResponse(
+          createFakeIncomingMessage(),
+          config.onEvent
+        );
 
         if (!statelessServer) {
           statelessServer = new McpServer(
             {
-              name: 'mcp-typescript server on vercel',
-              version: '0.1.0',
+              name: "mcp-typescript server on vercel",
+              version: "0.1.0",
             },
             serverOptions
           );
@@ -274,8 +296,8 @@ export function initializeMcpApiHandler(
 
         // Parse the request body
         let bodyContent: BodyType;
-        const contentType = req.headers.get('content-type') || '';
-        if (contentType.includes('application/json')) {
+        const contentType = req.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
           bodyContent = await req.json();
         } else {
           bodyContent = await req.text();
@@ -287,18 +309,68 @@ export function initializeMcpApiHandler(
           headers: Object.fromEntries(req.headers),
           body: bodyContent,
         });
-        await statelessTransport.handleRequest(incomingRequest, res);
+
+        // Create a response that will emit events
+        const wrappedRes = new EventEmittingResponse(
+          incomingRequest,
+          config.onEvent
+        );
+        Object.assign(wrappedRes, res);
+
+        try {
+          await statelessTransport.handleRequest(incomingRequest, wrappedRes);
+          if (
+            typeof bodyContent === "object" &&
+            bodyContent &&
+            "method" in bodyContent
+          ) {
+            eventRes.requestCompleted(
+              bodyContent.method as string,
+              bodyContent
+            );
+          }
+        } catch (error) {
+          if (
+            typeof bodyContent === "object" &&
+            bodyContent &&
+            "method" in bodyContent
+          ) {
+            eventRes.requestCompleted(
+              bodyContent.method as string,
+              undefined,
+              error instanceof Error ? error : String(error)
+            );
+          }
+          throw error;
+        }
       }
     } else if (url.pathname === sseEndpoint) {
-      const { redis, redisPublisher } = await initializeRedis({ redisUrl, logger });
-      logger.log('Got new SSE connection');
-      assert(sseMessageEndpoint, 'sseMessageEndpoint is required');
+      const { redis, redisPublisher } = await initializeRedis({
+        redisUrl,
+        logger,
+      });
+      logger.log("Got new SSE connection");
+      assert(sseMessageEndpoint, "sseMessageEndpoint is required");
       const transport = new SSEServerTransport(sseMessageEndpoint, res);
       const sessionId = transport.sessionId;
+
+      const eventRes = new EventEmittingResponse(
+        createFakeIncomingMessage(),
+        config.onEvent,
+        sessionId
+      );
+      eventRes.startSession("SSE", {
+        userAgent: req.headers.get("user-agent") ?? undefined,
+        ip:
+          req.headers.get("x-forwarded-for") ??
+          req.headers.get("x-real-ip") ??
+          undefined,
+      });
+
       const server = new McpServer(
         {
-          name: 'mcp-typescript server on vercel',
-          version: '0.1.0',
+          name: "mcp-typescript server on vercel",
+          version: "0.1.0",
         },
         serverOptions
       );
@@ -307,16 +379,15 @@ export function initializeMcpApiHandler(
       servers.push(server);
 
       server.server.onclose = () => {
-        logger.log('SSE connection closed');
-        servers = servers.filter(s => s !== server);
+        logger.log("SSE connection closed");
+        eventRes.endSession("SSE");
+        servers = servers.filter((s) => s !== server);
       };
 
       let logs: {
         type: LogLevel;
         messages: string[];
       }[] = [];
-      // This ensures that we logs in the context of the right invocation since the subscriber
-      // is not itself invoked in request context.
 
       // eslint-disable-next-line no-inner-declarations
       function logInContext(severity: LogLevel, ...messages: string[]) {
@@ -328,8 +399,8 @@ export function initializeMcpApiHandler(
 
       // Handles messages originally received via /message
       const handleMessage = async (message: string) => {
-        logger.log('Received message from Redis', message);
-        logInContext('log', 'Received message from Redis', message);
+        logger.log("Received message from Redis", message);
+        logInContext("log", "Received message from Redis", message);
         const request = JSON.parse(message) as SerializedRequest;
 
         // Make in IncomingMessage object because that is what the SDK expects.
@@ -337,11 +408,16 @@ export function initializeMcpApiHandler(
           method: request.method,
           url: request.url,
           headers: request.headers,
-          body: request.body, // This could already be an object from earlier parsing
+          body: request.body,
         });
-        const syntheticRes = new ServerResponse(req);
+
+        const syntheticRes = new EventEmittingResponse(
+          req,
+          config.onEvent,
+          sessionId
+        );
         let status = 100;
-        let body = '';
+        let body = "";
         syntheticRes.writeHead = (statusCode: number) => {
           status = statusCode;
           return syntheticRes;
@@ -350,7 +426,31 @@ export function initializeMcpApiHandler(
           body = b as string;
           return syntheticRes;
         };
-        await transport.handlePostMessage(req, syntheticRes);
+
+        try {
+          await transport.handlePostMessage(req, syntheticRes);
+
+          // If it was a function call, complete it
+          if (
+            typeof request.body === "object" &&
+            request.body &&
+            "method" in request.body
+          ) {
+            try {
+              const result = JSON.parse(body);
+              eventRes.requestCompleted(request.body.method as string, result);
+            } catch {
+              eventRes.requestCompleted(request.body.method as string, body);
+            }
+          }
+        } catch (error) {
+          eventRes.error(
+            error instanceof Error ? error : String(error),
+            "Error handling SSE message",
+            "session"
+          );
+          throw error;
+        }
 
         await redisPublisher.publish(
           `responses:${sessionId}:${request.requestId}`,
@@ -362,13 +462,18 @@ export function initializeMcpApiHandler(
 
         if (status >= 200 && status < 300) {
           logInContext(
-            'log',
+            "log",
             `Request ${sessionId}:${request.requestId} succeeded: ${body}`
           );
         } else {
           logInContext(
-            'error',
+            "error",
             `Message for ${sessionId}:${request.requestId} failed with status ${status}: ${body}`
+          );
+          eventRes.error(
+            `Request failed with status ${status}`,
+            body,
+            "session"
           );
         }
       };
@@ -385,14 +490,11 @@ export function initializeMcpApiHandler(
 
       let timeout: NodeJS.Timeout;
       let resolveTimeout: (value: unknown) => void;
-      const waitPromise = new Promise(resolve => {
+      const waitPromise = new Promise((resolve) => {
         resolveTimeout = resolve;
-        timeout = setTimeout(
-          () => {
-            resolve('max duration reached');
-          },
-          (maxDuration ?? 60) * 1000
-        );
+        timeout = setTimeout(() => {
+          resolve("max duration reached");
+        }, (maxDuration ?? 60) * 1000);
       });
 
       // eslint-disable-next-line no-inner-declarations
@@ -400,12 +502,12 @@ export function initializeMcpApiHandler(
         clearTimeout(timeout);
         clearInterval(interval);
         await redis.unsubscribe(`requests:${sessionId}`, handleMessage);
-        logger.log('Done');
+        logger.log("Done");
         res.statusCode = 200;
         res.end();
       }
-      req.signal.addEventListener('abort', () =>
-        resolveTimeout('client hang up')
+      req.signal.addEventListener("abort", () =>
+        resolveTimeout("client hang up")
       );
 
       await server.connect(transport);
@@ -413,8 +515,11 @@ export function initializeMcpApiHandler(
       logger.log(closeReason);
       await cleanup();
     } else if (url.pathname === sseMessageEndpoint) {
-      const { redis, redisPublisher } = await initializeRedis({ redisUrl, logger });
-      logger.log('Received message');
+      const { redis, redisPublisher } = await initializeRedis({
+        redisUrl,
+        logger,
+      });
+      logger.log("Received message");
 
       const body = await req.text();
       let parsedBody: BodyType;
@@ -424,31 +529,34 @@ export function initializeMcpApiHandler(
         parsedBody = body;
       }
 
-      const sessionId = url.searchParams.get('sessionId') || '';
+      const sessionId = url.searchParams.get("sessionId") || "";
       if (!sessionId) {
         res.statusCode = 400;
-        res.end('No sessionId provided');
+        res.end("No sessionId provided");
         return;
       }
       const requestId = crypto.randomUUID();
       const serializedRequest: SerializedRequest = {
         requestId,
-        url: req.url || '',
-        method: req.method || '',
+        url: req.url || "",
+        method: req.method || "",
         body: parsedBody,
         headers: Object.fromEntries(req.headers.entries()),
       };
 
       // Handles responses from the /sse endpoint.
-      await redis.subscribe(`responses:${sessionId}:${requestId}`, message => {
-        clearTimeout(timeout);
-        const response = JSON.parse(message) as {
-          status: number;
-          body: string;
-        };
-        res.statusCode = response.status;
-        res.end(response.body);
-      });
+      await redis.subscribe(
+        `responses:${sessionId}:${requestId}`,
+        (message) => {
+          clearTimeout(timeout);
+          const response = JSON.parse(message) as {
+            status: number;
+            body: string;
+          };
+          res.statusCode = response.status;
+          res.end(response.body);
+        }
+      );
 
       // Queue the request in Redis so that a subscriber can pick it up.
       // One queue per session.
@@ -461,16 +569,16 @@ export function initializeMcpApiHandler(
       const timeout = setTimeout(async () => {
         await redis.unsubscribe(`responses:${sessionId}:${requestId}`);
         res.statusCode = 408;
-        res.end('Request timed out');
+        res.end("Request timed out");
       }, 10 * 1000);
 
-      res.on('close', async () => {
+      res.on("close", async () => {
         clearTimeout(timeout);
         await redis.unsubscribe(`responses:${sessionId}:${requestId}`);
       });
     } else {
       res.statusCode = 404;
-      res.end('Not found');
+      res.end("Not found");
     }
   };
 }
@@ -489,8 +597,8 @@ function createFakeIncomingMessage(
   options: FakeIncomingMessageOptions = {}
 ): IncomingMessage {
   const {
-    method = 'GET',
-    url = '/',
+    method = "GET",
+    url = "/",
     headers = {},
     body = null,
     socket = new Socket(),
@@ -502,7 +610,7 @@ function createFakeIncomingMessage(
 
   // Add the body content if provided
   if (body) {
-    if (typeof body === 'string') {
+    if (typeof body === "string") {
       readable.push(body);
     } else if (Buffer.isBuffer(body)) {
       readable.push(body);
