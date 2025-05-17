@@ -114,8 +114,8 @@ async function init() {
 }
 
 program
-  .name('create-mcp-route')
-  .description('Creates a new MCP route handler in your Next.js project')
+  .name('@vercel/mcp-adapter')
+  .description('Initialize MCP route handler in your Next.js project')
   .action(init);
 
 program.parse(); 
