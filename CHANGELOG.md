@@ -1,5 +1,16 @@
 # @vercel/mcp-adapter
 
+## 0.5.0
+
+### Minor Changes
+
+- 24ce36e: added cli support to auto add the mcp route to a nextjs project
+
+### Patch Changes
+
+- 24ce36e: updated readme
+- 48d4d64: fix out of date pnpm lock
+
 ## 0.4.1
 
 ### Patch Changes
