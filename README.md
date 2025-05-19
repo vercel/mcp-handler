@@ -44,8 +44,13 @@ const handler = createMcpHandler(
     // Optional redis config
     redisUrl: process.env.REDIS_URL,
     // You need these endpoints
-    // @deprecated use streamableHttpEndpoint, sseEndpoint, sseMessageEndpoint
     basePath: '/api', // this needs to match where the [transport] is located.
+    // @deprecated use 'basePath' instead
+    streamableHttpEndpoint?: string; // Endpoint for streamable HTTP transport
+    // @deprecated use 'basePath' instead
+    sseEndpoint?: string; // Endpoint for SSE transport
+    // @deprecated use 'basePath' instead
+    sseMessageEndpoint?: string; // Endpoint for SSE message transport
     maxDuration: 60,
     verboseLogs: true,
   }
