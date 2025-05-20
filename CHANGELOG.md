@@ -1,5 +1,11 @@
 # @vercel/mcp-adapter
 
+## 0.5.1
+
+### Patch Changes
+
+- f48b5d6: Fix HTTP status code for some errors
+
 ## 0.5.0
 
 ### Minor Changes
