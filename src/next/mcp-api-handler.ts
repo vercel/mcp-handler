@@ -345,6 +345,27 @@ export function initializeMcpApiHandler(
         }
       }
     } else if (url.pathname === sseEndpoint) {
+      // Check HTTP method - only allow GET for SSE connections
+      if (req.method !== "GET") {
+        logger.log(`Rejected SSE connection with method ${req.method}`);
+        res
+          .writeHead(405, { "Content-Type": "text/plain" })
+          .end("Method Not Allowed");
+        return;
+      }
+
+      // Check that Accept header supports event-stream
+      const acceptHeader = req.headers.get("accept");
+      if (acceptHeader && !acceptHeader.includes("text/event-stream")) {
+        logger.log(
+          `Rejected SSE connection with incompatible Accept header: ${acceptHeader}`
+        );
+        res
+          .writeHead(406, { "Content-Type": "text/plain" })
+          .end("Not Acceptable");
+        return;
+      }
+
       const { redis, redisPublisher } = await initializeRedis({
         redisUrl,
         logger,
