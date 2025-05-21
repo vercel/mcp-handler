@@ -1,5 +1,11 @@
 # @vercel/mcp-adapter
 
+## 0.6.0
+
+### Minor Changes
+
+- 74d8a2c: Fix backwards compatibility algorithm with HTTP + SSE
+
 ## 0.5.1
 
 ### Patch Changes
