@@ -357,7 +357,12 @@ export function initializeMcpApiHandler(
       // Check that Accept header supports event-stream
       const acceptHeader =
         req.headers.get("accept") || req.headers.get("Accept");
-      if (acceptHeader && !acceptHeader.includes("text/event-stream")) {
+      if (
+        acceptHeader &&
+        !acceptHeader.includes("text/event-stream") &&
+        !acceptHeader.includes("*/*") &&
+        !acceptHeader.includes("text/*")
+      ) {
         logger.log(
           `Rejected SSE connection with incompatible Accept header: ${acceptHeader}`
         );
