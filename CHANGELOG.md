@@ -1,5 +1,11 @@
 # @vercel/mcp-adapter
 
+## 0.6.2
+
+### Patch Changes
+
+- 4f7a593: Fix SSE initializeServer
+
 ## 0.6.1
 
 ### Patch Changes
