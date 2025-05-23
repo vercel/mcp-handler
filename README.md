@@ -26,7 +26,7 @@ const handler = createMcpHandler(
     server.tool(
       'roll_dice',
       'Rolls an N-sided die',
-      { 
+      {
         sides: z.number().int().min(2)
       },
       async ({ sides }) => {
@@ -63,6 +63,7 @@ export { handler as GET, handler as POST };
 When you want to use it in your MCP client of choice:
 
 ### Claude Desktop
+
 [Official Docs](https://modelcontextprotocol.io/quickstart/user)
 
 In order to add an MCP server to Claude Desktop you need to edit the configuration file located at:
@@ -84,13 +85,15 @@ If it does not exist yet, you may need to enable it under Settings > Developer.
 Restart Claude Desktop to pick up the changes in the configuration file. Upon restarting, you should see a hammer icon in the bottom right corner of the input box.
 
 ### Cursor
-[Official Docs](https://docs.cursor.com/context/model-context-protocol) 
+
+[Official Docs](https://docs.cursor.com/context/model-context-protocol)
 
 The configuration file is located at ~/.cursor/mcp.json.
 
 As of version 0.48.0, Cursor supports unauthed SSE servers directly. If your MCP server is using the official MCP OAuth authorization protocol, you still need to add a "command" server and call mcp-remote.
 
 ### Windsurf
+
 [Official Docs](https://docs.codeium.com/windsurf/mcp)
 
 The configuration file is located at ~/.codeium/windsurf/mcp_config.json.
@@ -101,15 +104,15 @@ The configuration file is located at ~/.codeium/windsurf/mcp_config.json.
 
 ```typescript
 // app/components/YourComponent.tsx
-import { McpClient } from '@modelcontextprotocol/sdk/client';
+import { McpClient } from "@modelcontextprotocol/sdk/client";
 
 const client = new McpClient({
   // When using basePath, the SSE endpoint will be automatically derived
-  transport: new SSEClientTransport('/api/mcp/mcp'),
+  transport: new SSEClientTransport("/api/mcp/mcp"),
 });
 
 // Use the client to make requests
-const result = await client.request('yourMethod', { param: 'value' });
+const result = await client.request("yourMethod", { param: "value" });
 ```
 
 ## Configuration Options
@@ -119,12 +122,7 @@ The `initializeMcpApiHandler` function accepts the following configuration optio
 ```typescript
 interface Config {
   redisUrl?: string; // Redis connection URL for pub/sub
-  // @deprecated use streamableHttpEndpoint, sseEndpoint, sseMessageEndpoint
   basePath?: string; // string; // Base path for MCP endpoints
-  
-  streamableHttpEndpoint?: string; // Endpoint for streamable HTTP transport
-  sseEndpoint?: string; // Endpoint for SSE transport
-  sseMessageEndpoint?: string; // Endpoint for SSE message transport
   maxDuration?: number; // Maximum duration for SSE connections in seconds
   verboseLogs?: boolean; // Log debugging information
 }
