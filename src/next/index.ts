@@ -1,7 +1,7 @@
-import { type Config, initializeMcpApiHandler } from './mcp-api-handler';
-import { createServerResponseAdapter } from './server-response-adapter';
-import type { ServerOptions } from '@modelcontextprotocol/sdk/server/index.js';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { type Config, initializeMcpApiHandler } from "./mcp-api-handler";
+import { createServerResponseAdapter } from "./server-response-adapter";
+import type { ServerOptions } from "@modelcontextprotocol/sdk/server/index.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 /**
  * Creates a MCP handler that can be used to handle MCP requests.
@@ -11,7 +11,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
  * @returns A function that can be used to handle MCP requests.
  */
 export default function createMcpRouteHandler(
-  initializeServer: (server: McpServer) => void,
+  initializeServer: (server: McpServer) => Promise<void>,
   serverOptions?: ServerOptions,
   config?: Config
 ): (request: Request) => Promise<Response> {
@@ -21,7 +21,7 @@ export default function createMcpRouteHandler(
     config
   );
   return (request: Request) => {
-    return createServerResponseAdapter(request.signal, res => {
+    return createServerResponseAdapter(request.signal, (res) => {
       mcpHandler(request, res);
     });
   };

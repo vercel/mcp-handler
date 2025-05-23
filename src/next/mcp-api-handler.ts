@@ -203,7 +203,7 @@ async function initializeRedis({
 }
 
 export function initializeMcpApiHandler(
-  initializeServer: (server: McpServer) => void,
+  initializeServer: (server: McpServer) => Promise<void>,
   serverOptions: ServerOptions = {},
   config: Config = {
     redisUrl: process.env.REDIS_URL || process.env.KV_URL,
@@ -290,7 +290,7 @@ export function initializeMcpApiHandler(
             serverOptions
           );
 
-          initializeServer(statelessServer);
+          await initializeServer(statelessServer);
           await statelessServer.connect(statelessTransport);
         }
 
