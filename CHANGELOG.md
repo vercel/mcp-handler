@@ -1,5 +1,11 @@
 # @vercel/mcp-adapter
 
+## 0.6.1
+
+### Patch Changes
+
+- b46856a: Allow an async initializeServer call
+
 ## 0.6.0
 
 ### Minor Changes
