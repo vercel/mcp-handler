@@ -401,7 +401,7 @@ export function initializeMcpApiHandler(
         },
         serverOptions
       );
-      initializeServer(server);
+      await initializeServer(server);
 
       servers.push(server);
 
