@@ -1,5 +1,11 @@
 # @vercel/mcp-adapter
 
+## 0.7.0
+
+### Minor Changes
+
+- b24064f: Update pinned mcp sdk version to 1.12.0
+
 ## 0.6.2
 
 ### Patch Changes
