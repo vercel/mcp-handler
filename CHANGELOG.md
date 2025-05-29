@@ -1,5 +1,41 @@
 # @vercel/mcp-adapter
 
+## 0.7.3
+
+### Patch Changes
+
+- 8fd2538: Fix missing non async argument
+
+## 0.7.2
+
+### Patch Changes
+
+- 47eff5a: Fix allowing both async and non async handlers
+
+## 0.7.1
+
+### Patch Changes
+
+- 13bd4fa: Add in auth handler
+
+## 0.7.0
+
+### Minor Changes
+
+- b24064f: Update pinned mcp sdk version to 1.12.0
+
+## 0.6.2
+
+### Patch Changes
+
+- 4f7a593: Fix SSE initializeServer
+
+## 0.6.1
+
+### Patch Changes
+
+- b46856a: Allow an async initializeServer call
+
 ## 0.6.0
 
 ### Minor Changes

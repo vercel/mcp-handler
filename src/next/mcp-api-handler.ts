@@ -152,8 +152,8 @@ export function calculateEndpoints({
     sseEndpoint: fullSseEndpoint,
     sseMessageEndpoint: fullSseMessageEndpoint,
   } = basePath != null
-    ? deriveEndpointsFromBasePath(basePath)
-    : {
+      ? deriveEndpointsFromBasePath(basePath)
+      : {
         streamableHttpEndpoint,
         sseEndpoint,
         sseMessageEndpoint,
@@ -203,7 +203,9 @@ async function initializeRedis({
 }
 
 export function initializeMcpApiHandler(
-  initializeServer: (server: McpServer) => void,
+  initializeServer:
+    | ((server: McpServer) => Promise<void>)
+    | ((server: McpServer) => void),
   serverOptions: ServerOptions = {},
   config: Config = {
     redisUrl: process.env.REDIS_URL || process.env.KV_URL,
@@ -290,7 +292,7 @@ export function initializeMcpApiHandler(
             serverOptions
           );
 
-          initializeServer(statelessServer);
+          await initializeServer(statelessServer);
           await statelessServer.connect(statelessTransport);
         }
 
@@ -401,7 +403,7 @@ export function initializeMcpApiHandler(
         },
         serverOptions
       );
-      initializeServer(server);
+      await initializeServer(server);
 
       servers.push(server);
 
@@ -633,7 +635,7 @@ function createFakeIncomingMessage(
 
   // Create a readable stream that will be used as the base for IncomingMessage
   const readable = new Readable();
-  readable._read = (): void => {}; // Required implementation
+  readable._read = (): void => { }; // Required implementation
 
   // Add the body content if provided
   if (body) {
