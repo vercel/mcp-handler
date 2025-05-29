@@ -2,7 +2,9 @@
 
 A Vercel adapter for the Model Context Protocol (MCP), enabling real-time communication between your applications and AI models. Currently supports Next.js with more framework adapters coming soon.
 
-Currently uses `**@modelcontextprotocol/sdk@1.12.0**`
+> [!WARNING]
+> This package is pinned to `@modelcontextprotocol/sdk@1.12.0` to ensure compatibility and stability. Using a different version may cause unexpected behavior.
+
 
 ## Installation
 
