@@ -70,7 +70,7 @@ When you want to use it in your MCP client of choice:
 
 In order to add an MCP server to Claude Desktop you need to edit the configuration file located at:
 
-```json
+```typescript
 "remote-example": {
   "command": "npx",
   "args": [
