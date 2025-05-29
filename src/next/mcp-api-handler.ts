@@ -571,17 +571,34 @@ export function initializeMcpApiHandler(
         headers: Object.fromEntries(req.headers.entries()),
       };
 
+      // Declare timeout and response handling state before subscription
+      let timeout: NodeJS.Timeout;
+      let hasResponded = false;
+      
+      // Safe response handler to prevent double res.end()
+      const sendResponse = (status: number, body: string) => {
+        if (!hasResponded) {
+          hasResponded = true;
+          clearTimeout(timeout);
+          res.statusCode = status;
+          res.end(body);
+        }
+      };
+
       // Handles responses from the /sse endpoint.
       await redis.subscribe(
         `responses:${sessionId}:${requestId}`,
         (message) => {
-          clearTimeout(timeout);
-          const response = JSON.parse(message) as {
-            status: number;
-            body: string;
-          };
-          res.statusCode = response.status;
-          res.end(response.body);
+          try {
+            const response = JSON.parse(message) as {
+              status: number;
+              body: string;
+            };
+            sendResponse(response.status, response.body);
+          } catch (error) {
+            logger.error("Failed to parse response message:", error);
+            sendResponse(500, "Internal server error");
+          }
         }
       );
 
@@ -593,13 +610,14 @@ export function initializeMcpApiHandler(
       );
       logger.log(`Published requests:${sessionId}`, serializedRequest);
 
-      const timeout = setTimeout(async () => {
+      // Set timeout after subscription is established
+      timeout = setTimeout(async () => {
         await redis.unsubscribe(`responses:${sessionId}:${requestId}`);
-        res.statusCode = 408;
-        res.end("Request timed out");
+        sendResponse(408, "Request timed out");
       }, 10 * 1000);
 
       res.on("close", async () => {
+        hasResponded = true;
         clearTimeout(timeout);
         await redis.unsubscribe(`responses:${sessionId}:${requestId}`);
       });
