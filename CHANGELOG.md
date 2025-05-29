@@ -1,5 +1,11 @@
 # @vercel/mcp-adapter
 
+## 0.7.1
+
+### Patch Changes
+
+- 13bd4fa: Add in auth handler
+
 ## 0.7.0
 
 ### Minor Changes
