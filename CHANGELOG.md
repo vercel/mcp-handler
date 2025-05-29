@@ -1,5 +1,11 @@
 # @vercel/mcp-adapter
 
+## 0.7.2
+
+### Patch Changes
+
+- 47eff5a: Fix allowing both async and non async handlers
+
 ## 0.7.1
 
 ### Patch Changes
