@@ -1,5 +1,11 @@
 # @vercel/mcp-adapter
 
+## 0.7.3
+
+### Patch Changes
+
+- 8fd2538: Fix missing non async argument
+
 ## 0.7.2
 
 ### Patch Changes
