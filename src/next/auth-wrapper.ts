@@ -2,6 +2,12 @@ import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types";
 import { InvalidTokenError, InsufficientScopeError, ServerError } from "@modelcontextprotocol/sdk/server/auth/errors";
 import { withAuthContext } from "./auth-context";
 
+declare global {
+  interface Request {
+    auth?: AuthInfo;
+  }
+}
+
 export function withMcpAuth(
   handler: (req: Request) => Response | Promise<Response>,
   verifyToken: (
@@ -54,7 +60,7 @@ export function withMcpAuth(
       }
 
       // Set auth info on the request object after successful verification
-      (req as any).auth = authInfo;
+      req.auth = authInfo;
 
       return withAuthContext(authInfo, () => handler(req));
     } catch (error) {
