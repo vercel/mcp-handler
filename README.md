@@ -145,4 +145,4 @@ interface Config {
 
 ## License
 
-MIT
+Apache-2.0
