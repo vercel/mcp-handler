@@ -1,5 +1,16 @@
 # @vercel/mcp-adapter
 
+## 0.8.0
+
+### Minor Changes
+
+- 166e5ab: Add option to disable SSE as per MCP spec
+
+### Patch Changes
+
+- 62518f2: Fix timeout scoping bug causing ReferenceError in SSE Handler
+- c55c609: Update auth logic to not throw error is missing bearerToken
+
 ## 0.7.3
 
 ### Patch Changes
