@@ -23,9 +23,6 @@ importers:
       redis:
         specifier: ^4.6.0
         version: 4.6.0
-      zod:
-        specifier: ^3.25.50
-        version: 3.25.50
     devDependencies:
       '@changesets/cli':
         specifier: ^2.27.12
@@ -42,6 +39,9 @@ importers:
       vitest:
         specifier: ^3.2.1
         version: 3.2.1(@types/node@22.15.8)(yaml@2.8.0)
+      zod:
+        specifier: ^3.25.50
+        version: 3.25.50
 
 packages:
 
