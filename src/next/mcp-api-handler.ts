@@ -117,6 +117,12 @@ export type Config = {
    * This can be used to track analytics, debug issues, or implement custom behaviors.
    */
   onEvent?: (event: McpEvent) => void;
+
+  /**
+   * If true, disables the SSE endpoint.
+   * @default false
+   */
+  disableSse?: boolean;
 };
 
 /**
@@ -217,6 +223,7 @@ export function initializeMcpApiHandler(
     basePath: "",
     maxDuration: 60,
     verboseLogs: false,
+    disableSse: false,
   }
 ) {
   const {
@@ -227,6 +234,7 @@ export function initializeMcpApiHandler(
     sseMessageEndpoint: explicitSseMessageEndpoint,
     maxDuration,
     verboseLogs,
+    disableSse,
   } = config;
 
   // If basePath is provided, derive endpoints from it
@@ -349,6 +357,12 @@ export function initializeMcpApiHandler(
         }
       }
     } else if (url.pathname === sseEndpoint) {
+      if (disableSse) {
+        res.statusCode = 404;
+        res.end("Not found");
+        return;
+      }
+
       // Check HTTP method - only allow GET for SSE connections
       if (req.method !== "GET") {
         logger.log(`Rejected SSE connection with method ${req.method}`);
@@ -546,6 +560,12 @@ export function initializeMcpApiHandler(
       logger.log(closeReason);
       await cleanup();
     } else if (url.pathname === sseMessageEndpoint) {
+      if (disableSse) {
+        res.statusCode = 404;
+        res.end("Not found");
+        return;
+      }
+
       const { redis, redisPublisher } = await initializeRedis({
         redisUrl,
         logger,
