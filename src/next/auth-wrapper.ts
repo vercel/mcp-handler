@@ -38,7 +38,6 @@ export function withMcpAuth(
     }
 
     if (authInfo.expiresAt && authInfo.expiresAt < Date.now() / 1000) {
-      const error = "Authorized expired";
       return Response.json(
         { error: "invalid_token", error_description: "Authorization expired" },
         {
