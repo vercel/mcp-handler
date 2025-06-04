@@ -322,7 +322,9 @@ export function initializeMcpApiHandler(
           url: req.url,
           headers: Object.fromEntries(req.headers),
           body: bodyContent,
+          auth: req.auth, // Use the auth info that should already be set by withMcpAuth
         });
+        
 
         // Create a response that will emit events
         const wrappedRes = new EventEmittingResponse(
@@ -666,7 +668,7 @@ interface FakeIncomingMessageOptions {
 // Create a fake IncomingMessage
 function createFakeIncomingMessage(
   options: FakeIncomingMessageOptions = {}
-): IncomingMessage {
+): IncomingMessage & { auth?: AuthInfo } {
   const {
     method = "GET",
     url = "/",
@@ -696,7 +698,7 @@ function createFakeIncomingMessage(
   }
 
   // Create the IncomingMessage instance
-  const req = new IncomingMessage(socket);
+  const req = new IncomingMessage(socket) as IncomingMessage & { auth?: AuthInfo };
 
   // Set the properties
   req.method = method;
