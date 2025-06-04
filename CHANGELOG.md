@@ -1,5 +1,11 @@
 # @vercel/mcp-adapter
 
+## 0.8.2
+
+### Patch Changes
+
+- 15fded0: Fix mjs module resolution
+
 ## 0.8.1
 
 ### Patch Changes
