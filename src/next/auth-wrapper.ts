@@ -4,7 +4,8 @@ import { withAuthContext } from "./auth-context";
 export function withMcpAuth(
   handler: (req: Request) => Response | Promise<Response>,
   verifyToken: (
-    req: Request
+    req: Request,
+    bearerToken?: string
   ) => AuthInfo | undefined | Promise<AuthInfo | undefined>,
   {
     required = false,
@@ -17,13 +18,17 @@ export function withMcpAuth(
   return async (req: Request) => {
     const origin = new URL(req.url).origin;
 
-    const authInfo = await verifyToken(req);
+    const authHeader = req.headers.get("Authorization");
+    const [_, bearerToken] = authHeader?.split(" ") || [];
+
+    const authInfo = await verifyToken(req, bearerToken);
+
     if (required && !authInfo) {
-      return Response.json(
-        {
+      return new Response(
+        JSON.stringify({
           error: "unauthorized_client",
           error_description: "No authorization provided",
-        },
+        }),
         {
           status: 401,
           headers: {
@@ -38,8 +43,11 @@ export function withMcpAuth(
     }
 
     if (authInfo.expiresAt && authInfo.expiresAt < Date.now() / 1000) {
-      return Response.json(
-        { error: "invalid_token", error_description: "Authorization expired" },
+      return new Response(
+        JSON.stringify({
+          error: "invalid_token",
+          error_description: "Authorization expired",
+        }),
         {
           status: 401,
           headers: {
