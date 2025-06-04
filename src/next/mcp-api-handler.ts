@@ -120,6 +120,8 @@ export type Config = {
 
   /**
    * If true, disables the SSE endpoint.
+   * As of 2025-03-26, SSE is not supported by the MCP spec.
+   * https://modelcontextprotocol.io/specification/2025-03-26/basic/transports
    * @default false
    */
   disableSse?: boolean;
