@@ -1,5 +1,13 @@
 # @vercel/mcp-adapter
 
+## 0.8.1
+
+### Patch Changes
+
+- 83e6fc7: Move zod to DevDep
+- 12b61fd: Add more robust error handling to auth logic
+- a522ffd: Move zod to devDep
+
 ## 0.8.0
 
 ### Minor Changes
