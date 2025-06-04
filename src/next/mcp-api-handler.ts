@@ -3,6 +3,8 @@ import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import {
   type IncomingHttpHeaders,
   IncomingMessage,
+  OutgoingHttpHeader,
+  OutgoingHttpHeaders,
   type ServerResponse,
 } from "node:http";
 import { createClient } from "redis";
@@ -20,6 +22,8 @@ import type {
 } from "../lib/log-helper";
 import { createEvent } from "../lib/log-helper";
 import { EventEmittingResponse } from "../lib/event-emitter.js";
+import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types";
+import { InvalidTokenError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
 
 interface SerializedRequest {
   requestId: string;
@@ -115,7 +119,24 @@ export type Config = {
    * This can be used to track analytics, debug issues, or implement custom behaviors.
    */
   onEvent?: (event: McpEvent) => void;
+
+  /**
+   * An optional list of middleware functions to apply to incoming requests.
+   */
+  middleware?: Middleware[];
 };
+
+export type Middleware = (
+  req: Request
+) =>
+  | { response: Response }
+  | Promise<{ response: Response }>
+  | { request: Request }
+  | Promise<{ request: Request }>
+  | { auth: AuthInfo }
+  | Promise<{ auth: AuthInfo }>
+  | void
+  | undefined;
 
 /**
  * Derives MCP endpoints from a base path.
@@ -152,8 +173,8 @@ export function calculateEndpoints({
     sseEndpoint: fullSseEndpoint,
     sseMessageEndpoint: fullSseMessageEndpoint,
   } = basePath != null
-      ? deriveEndpointsFromBasePath(basePath)
-      : {
+    ? deriveEndpointsFromBasePath(basePath)
+    : {
         streamableHttpEndpoint,
         sseEndpoint,
         sseMessageEndpoint,
@@ -245,7 +266,10 @@ export function initializeMcpApiHandler(
     sessionIdGenerator: undefined,
   });
 
-  return async function mcpApiHandler(req: Request, res: ServerResponse) {
+  const mcpApiHandler = async function mcpApiHandler(
+    req: Request,
+    res: ServerResponse
+  ) {
     const url = new URL(req.url || "", "https://example.com");
     if (url.pathname === streamableHttpEndpoint) {
       if (req.method === "GET") {
@@ -310,6 +334,8 @@ export function initializeMcpApiHandler(
           url: req.url,
           headers: Object.fromEntries(req.headers),
           body: bodyContent,
+          // See https://github.com/modelcontextprotocol/typescript-sdk/blob/590d4841373fc4eb86ecc9079834353a98cb84a3/src/server/auth/middleware/bearerAuth.ts#L71 for more info.
+          auth: (req as { auth?: AuthInfo }).auth,
         });
 
         // Create a response that will emit events
@@ -438,6 +464,7 @@ export function initializeMcpApiHandler(
           url: request.url,
           headers: request.headers,
           body: request.body,
+          auth: (request as { auth?: AuthInfo }).auth,
         });
 
         const syntheticRes = new EventEmittingResponse(
@@ -576,7 +603,7 @@ export function initializeMcpApiHandler(
       // Declare timeout and response handling state before subscription
       let timeout: NodeJS.Timeout;
       let hasResponded = false;
-      
+
       // Safe response handler to prevent double res.end()
       const sendResponse = (status: number, body: string) => {
         if (!hasResponded) {
@@ -628,6 +655,65 @@ export function initializeMcpApiHandler(
       res.end("Not found");
     }
   };
+
+  const middlewareList = config.middleware;
+  if (!middlewareList || middlewareList.length === 0) {
+    return mcpApiHandler;
+  }
+
+  return async function mcpApiHandlerWithMiddleware(
+    initialReq: Request,
+    res: ServerResponse
+  ) {
+    let req = initialReq;
+    let auth: AuthInfo | undefined | null;
+
+    for (const middleware of middlewareList) {
+      const result = await middleware(req);
+      if (!result) {
+        continue;
+      }
+      if ("response" in result) {
+        const response = result.response;
+        const headers: Record<string, string | string[]> = {};
+        for (const [key, value] of response.headers.entries()) {
+          if (value === undefined) {
+            continue;
+          }
+          const prevValue = headers[key];
+          if (prevValue !== undefined) {
+            headers[key] = Array.isArray(prevValue)
+              ? [...prevValue, value]
+              : [prevValue, value];
+          } else {
+            headers[key] = value;
+          }
+        }
+        res.writeHead(response.status, response.statusText, headers);
+        if (response.body) {
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          res.write(buffer);
+        }
+        res.end();
+        return;
+      }
+      if ("request" in result) {
+        req = result.request;
+      } else if ("auth" in result) {
+        auth = result.auth;
+      }
+    }
+
+    if (auth) {
+      if (auth.expiresAt && auth.expiresAt < Date.now() / 1000) {
+        throw new InvalidTokenError("Token has expired");
+      }
+      // See https://github.com/modelcontextprotocol/typescript-sdk/blob/590d4841373fc4eb86ecc9079834353a98cb84a3/src/server/auth/middleware/bearerAuth.ts#L71 for more info.
+      (req as Request & { auth: AuthInfo }).auth = auth;
+    }
+    return mcpApiHandler(req, res);
+  };
 }
 
 // Define the options interface
@@ -637,6 +723,7 @@ interface FakeIncomingMessageOptions {
   headers?: IncomingHttpHeaders;
   body?: BodyType;
   socket?: Socket;
+  auth?: AuthInfo | null;
 }
 
 // Create a fake IncomingMessage
@@ -649,11 +736,12 @@ function createFakeIncomingMessage(
     headers = {},
     body = null,
     socket = new Socket(),
+    auth,
   } = options;
 
   // Create a readable stream that will be used as the base for IncomingMessage
   const readable = new Readable();
-  readable._read = (): void => { }; // Required implementation
+  readable._read = (): void => {}; // Required implementation
 
   // Add the body content if provided
   if (body) {
@@ -678,6 +766,7 @@ function createFakeIncomingMessage(
   req.method = method;
   req.url = url;
   req.headers = headers;
+  (req as IncomingMessage & { auth?: AuthInfo }).auth = auth ?? undefined;
 
   // Copy over the stream methods
   req.push = readable.push.bind(readable);

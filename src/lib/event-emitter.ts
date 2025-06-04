@@ -1,4 +1,5 @@
 import { ServerResponse, type IncomingMessage } from "node:http";
+import crypto from "node:crypto";
 import {
   type McpErrorEvent,
   type McpEvent,
