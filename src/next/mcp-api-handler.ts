@@ -20,6 +20,8 @@ import type {
 } from "../lib/log-helper";
 import { createEvent } from "../lib/log-helper";
 import { EventEmittingResponse } from "../lib/event-emitter.js";
+import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types";
+import { getAuthContext } from "./auth-context";
 
 interface SerializedRequest {
   requestId: string;
@@ -152,8 +154,8 @@ export function calculateEndpoints({
     sseEndpoint: fullSseEndpoint,
     sseMessageEndpoint: fullSseMessageEndpoint,
   } = basePath != null
-      ? deriveEndpointsFromBasePath(basePath)
-      : {
+    ? deriveEndpointsFromBasePath(basePath)
+    : {
         streamableHttpEndpoint,
         sseEndpoint,
         sseMessageEndpoint,
@@ -576,7 +578,7 @@ export function initializeMcpApiHandler(
       // Declare timeout and response handling state before subscription
       let timeout: NodeJS.Timeout;
       let hasResponded = false;
-      
+
       // Safe response handler to prevent double res.end()
       const sendResponse = (status: number, body: string) => {
         if (!hasResponded) {
@@ -637,6 +639,7 @@ interface FakeIncomingMessageOptions {
   headers?: IncomingHttpHeaders;
   body?: BodyType;
   socket?: Socket;
+  auth?: AuthInfo;
 }
 
 // Create a fake IncomingMessage
@@ -653,7 +656,7 @@ function createFakeIncomingMessage(
 
   // Create a readable stream that will be used as the base for IncomingMessage
   const readable = new Readable();
-  readable._read = (): void => { }; // Required implementation
+  readable._read = (): void => {}; // Required implementation
 
   // Add the body content if provided
   if (body) {
@@ -678,6 +681,12 @@ function createFakeIncomingMessage(
   req.method = method;
   req.url = url;
   req.headers = headers;
+
+  const auth = options.auth || getAuthContext();
+  if (auth) {
+    // See https://github.com/modelcontextprotocol/typescript-sdk/blob/590d4841373fc4eb86ecc9079834353a98cb84a3/src/server/auth/middleware/bearerAuth.ts#L71 for more info.
+    (req as { auth?: AuthInfo }).auth = auth;
+  }
 
   // Copy over the stream methods
   req.push = readable.push.bind(readable);
