@@ -1,5 +1,4 @@
 import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types";
-import { InvalidTokenError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
 import { withAuthContext } from "./auth-context";
 
 export function withMcpAuth(
@@ -21,7 +20,10 @@ export function withMcpAuth(
     const authInfo = await verifyToken(req);
     if (required && !authInfo) {
       return Response.json(
-        { error: "Unauthorized" },
+        {
+          error: "unauthorized_client",
+          error_description: "No authorization provided",
+        },
         {
           status: 401,
           headers: {
@@ -36,7 +38,16 @@ export function withMcpAuth(
     }
 
     if (authInfo.expiresAt && authInfo.expiresAt < Date.now() / 1000) {
-      throw new InvalidTokenError("Token has expired");
+      const error = "Authorized expired";
+      return Response.json(
+        { error: "invalid_token", error_description: "Authorization expired" },
+        {
+          status: 401,
+          headers: {
+            "WWW-Authenticate": `Bearer error="invalid_token", error_description="Authorization expired", resource_metadata=${origin}${oauthResourcePath}`,
+          },
+        }
+      );
     }
     return withAuthContext(authInfo, () => handler(req));
   };
