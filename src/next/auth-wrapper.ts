@@ -21,7 +21,10 @@ export function withMcpAuth(
     const authHeader = req.headers.get("Authorization");
     const [type, token] = authHeader?.split(" ") || [];
 
+    // Only support bearer token as per the MCP spec
+    // https://modelcontextprotocol.io/specification/2025-03-26/basic/authorization#2-6-1-token-requirements
     const bearerToken = type?.toLowerCase() === "bearer" ? token : undefined;
+
     const authInfo = await verifyToken(req, bearerToken);
 
     if (required && !authInfo) {
