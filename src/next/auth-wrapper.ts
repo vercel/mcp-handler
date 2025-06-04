@@ -19,8 +19,9 @@ export function withMcpAuth(
     const origin = new URL(req.url).origin;
 
     const authHeader = req.headers.get("Authorization");
-    const [_, bearerToken] = authHeader?.split(" ") || [];
+    const [type, token] = authHeader?.split(" ") || [];
 
+    const bearerToken = type?.toLowerCase() === "bearer" ? token : undefined;
     const authInfo = await verifyToken(req, bearerToken);
 
     if (required && !authInfo) {
