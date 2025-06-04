@@ -578,7 +578,6 @@ export function initializeMcpApiHandler(
       // Declare timeout and response handling state before subscription
       let timeout: NodeJS.Timeout;
       let hasResponded = false;
-
       // Safe response handler to prevent double res.end()
       const sendResponse = (status: number, body: string) => {
         if (!hasResponded) {
