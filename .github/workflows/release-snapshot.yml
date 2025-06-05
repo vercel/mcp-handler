@@ -1,9 +1,6 @@
-name: Release
+name: Release Snapshot
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 concurrency:
@@ -14,8 +11,8 @@ env:
   TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
 
 jobs:
-  release:
-    name: Release
+  release-snapshot:
+    name: Release Snapshot
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -38,13 +35,13 @@ jobs:
         id: pnpm-install
         run: pnpm install --frozen-lockfile
 
-      - name: Create Release PR or Publish Packages
-        uses: changesets/action@v1
-        with:
-          publish: pnpm release
-          version: pnpm version-packages
-          commit: "chore: update package versions"
-          title: "chore: update package versions"
+      - name: Add SHORT_SHA env property with commit short sha
+        run: echo "SHORT_SHA=`echo ${{ github.sha }} | cut -c1-8`" >> $GITHUB_ENV
+
+      - name: Create Snapshot Release
+        run: |
+          pnpm changeset version --snapshot ${SHORT_SHA}
+          pnpm changeset publish --no-git-tag --tag snapshot
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
