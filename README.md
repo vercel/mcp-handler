@@ -5,17 +5,16 @@ A Vercel adapter for the Model Context Protocol (MCP), enabling real-time commun
 > [!WARNING]
 > This package is pinned to `@modelcontextprotocol/sdk@1.12.0` to ensure compatibility and stability. Using a different version may cause unexpected behavior.
 
-
 ## Installation
 
 ```bash
-npm install @vercel/mcp-adapter
+npm install @vercel/mcp-adapter @modelcontextprotocol/sdk
 # or
-yarn add @vercel/mcp-adapter
+yarn add @vercel/mcp-adapter @modelcontextprotocol/sdk
 # or
-pnpm add @vercel/mcp-adapter
+pnpm add @vercel/mcp-adapter @modelcontextprotocol/sdk
 # or
-bun add @vercel/mcp-adapter
+bun add @vercel/mcp-adapter @modelcontextprotocol/sdk
 ```
 
 ## Next.js Usage
