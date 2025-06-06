@@ -67,7 +67,7 @@
   },
   "peerDependenciesMeta": {
     "@modelcontextprotocol/sdk": {
-      "optional": true
+      "optional": false 
     }
   },
   "packageManager": "pnpm@9.4.0",
