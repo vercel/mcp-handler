@@ -1,5 +1,11 @@
 # @vercel/mcp-adapter
 
+## 0.9.0
+
+### Minor Changes
+
+- 58efcf0: Add peerDependenciesMeta to fix not packaging the MCP SDK anymore
+
 ## 0.8.2
 
 ### Patch Changes
