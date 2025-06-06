@@ -1,5 +1,11 @@
 # @vercel/mcp-adapter
 
+## 0.9.1
+
+### Patch Changes
+
+- c86da9a: Not optional
+
 ## 0.9.0
 
 ### Minor Changes
