@@ -2,4 +2,4 @@
 "@vercel/mcp-adapter": minor
 ---
 
-Peer and regular dependency
+Add peerDependenciesMeta to fix not packaging the MCP SDK anymore

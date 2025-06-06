@@ -31,10 +31,6 @@ jobs:
           version: 9.4.0
           run_install: false
 
-      - name: Add npm auth token to pnpm
-        run: pnpm config set '//registry.npmjs.org/:_authToken' "${NPM_TOKEN_ELEVATED}"
-        env:
-          NPM_TOKEN_ELEVATED: ${{secrets.NPM_TOKEN_ELEVATED}}
       - name: Install Dependencies
         id: pnpm-install
         run: pnpm install --frozen-lockfile
@@ -45,7 +41,6 @@ jobs:
       - name: Create Snapshot Release
         run: |
           pnpm changeset version --snapshot ${SHORT_SHA}
-          pnpm build
           pnpm changeset publish --no-git-tag --tag snapshot
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
