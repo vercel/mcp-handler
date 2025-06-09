@@ -1,5 +1,9 @@
-import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types";
-import { InvalidTokenError, InsufficientScopeError, ServerError } from "@modelcontextprotocol/sdk/server/auth/errors";
+import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
+import {
+  InvalidTokenError,
+  InsufficientScopeError,
+  ServerError,
+} from "@modelcontextprotocol/sdk/server/auth/errors.js";
 import { withAuthContext } from "./auth-context";
 
 declare global {
@@ -34,7 +38,7 @@ export function withMcpAuth(
       const bearerToken = type?.toLowerCase() === "bearer" ? token : undefined;
 
       const authInfo = await verifyToken(req, bearerToken);
-      
+
       if (required && !authInfo) {
         throw new InvalidTokenError("No authorization provided");
       }
@@ -45,7 +49,7 @@ export function withMcpAuth(
 
       // Check if token has the required scopes (if any)
       if (requiredScopes?.length) {
-        const hasAllScopes = requiredScopes.every(scope =>
+        const hasAllScopes = requiredScopes.every((scope) =>
           authInfo.scopes.includes(scope)
         );
 
@@ -72,23 +76,23 @@ export function withMcpAuth(
           status: 401,
           headers: {
             "WWW-Authenticate": `Bearer error="${error.errorCode}", error_description="${error.message}", resource_metadata="${resourceMetadataUrl}"`,
-            "Content-Type": "application/json"
-          }
+            "Content-Type": "application/json",
+          },
         });
       } else if (error instanceof InsufficientScopeError) {
         return new Response(JSON.stringify(error.toResponseObject()), {
           status: 403,
           headers: {
             "WWW-Authenticate": `Bearer error="${error.errorCode}", error_description="${error.message}", resource_metadata="${resourceMetadataUrl}"`,
-            "Content-Type": "application/json"
-          }
+            "Content-Type": "application/json",
+          },
         });
       } else if (error instanceof ServerError) {
         return new Response(JSON.stringify(error.toResponseObject()), {
           status: 500,
           headers: {
-            "Content-Type": "application/json"
-          }
+            "Content-Type": "application/json",
+          },
         });
       } else {
         console.error("Unexpected error authenticating bearer token:", error);
@@ -96,12 +100,10 @@ export function withMcpAuth(
         return new Response(JSON.stringify(serverError.toResponseObject()), {
           status: 500,
           headers: {
-            "Content-Type": "application/json"
-          }
+            "Content-Type": "application/json",
+          },
         });
       }
     }
   };
 }
-
-
