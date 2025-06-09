@@ -1,5 +1,15 @@
 # @vercel/mcp-adapter
 
+## 0.10.0
+
+### Minor Changes
+
+- 71c14ea: Fix import error with mcp sdk
+
+### Patch Changes
+
+- 71c14ea: Fix module resolution
+
 ## 0.9.1
 
 ### Patch Changes
