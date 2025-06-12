@@ -21,19 +21,19 @@ bun add @vercel/mcp-adapter @modelcontextprotocol/sdk
 
 ```typescript
 // app/api/[transport]/route.ts
-import { createMcpHandler } from '@vercel/mcp-adapter';
+import { createMcpHandler } from "@vercel/mcp-adapter";
 const handler = createMcpHandler(
-  server => {
+  (server) => {
     server.tool(
-      'roll_dice',
-      'Rolls an N-sided die',
+      "roll_dice",
+      "Rolls an N-sided die",
       {
-        sides: z.number().int().min(2)
+        sides: z.number().int().min(2),
       },
       async ({ sides }) => {
         const value = 1 + Math.floor(Math.random() * sides);
         return {
-          content: [{ type: 'text', text: `🎲 You rolled a ${value}!` }],
+          content: [{ type: "text", text: `🎲 You rolled a ${value}!` }],
         };
       }
     );
@@ -44,14 +44,7 @@ const handler = createMcpHandler(
   {
     // Optional redis config
     redisUrl: process.env.REDIS_URL,
-    // You need these endpoints
-    basePath: '/api', // this needs to match where the [transport] is located.
-    // @deprecated use 'basePath' instead
-    streamableHttpEndpoint?: string; // Endpoint for streamable HTTP transport
-    // @deprecated use 'basePath' instead
-    sseEndpoint?: string; // Endpoint for SSE transport
-    // @deprecated use 'basePath' instead
-    sseMessageEndpoint?: string; // Endpoint for SSE message transport
+    basePath: "/api", // this needs to match where the [transport] is located.
     maxDuration: 60,
     verboseLogs: true,
   }
@@ -62,6 +55,9 @@ export { handler as GET, handler as POST };
 ## Integrating into your client
 
 When you want to use it in your MCP client of choice:
+
+Depending on the version of your client application, remote MCP's may need to use
+[mcp-remote](https://www.npmjs.com/package/mcp-remote) to proxy Streamble HTTP into Stdio.
 
 ### Claude Desktop
 
