@@ -1,5 +1,11 @@
 # @vercel/mcp-adapter
 
+## 0.11.1
+
+### Patch Changes
+
+- fc2a6d8: Update README during NPM outage
+
 ## 0.11.0
 
 ### Minor Changes
