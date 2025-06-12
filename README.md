@@ -52,6 +52,34 @@ const handler = createMcpHandler(
 export { handler as GET, handler as POST };
 ```
 
+## Connecting to your MCP server via stdio
+
+Depending on the version of your client application, remote MCP's may need to use
+[mcp-remote](https://www.npmjs.com/package/mcp-remote) to proxy Streamble HTTP into stdio.
+
+If your client supports it, it's recommended to connect to the Streamable HTTP endpoint directly such as:
+
+```typescript
+"remote-example": {
+  "url": "http://localhost:3000/api/mcp",
+}
+```
+
+Due to client versions, and varying levels of support, you can list `mcp-remote` as the method for end users to connect to your MCP server.
+
+The above set up snippet will then look like:
+
+```typescript
+"remote-example": {
+  "command": "npx",
+  "args": [
+    "mcp-remote",
+    "-y",
+    "http://localhost:3000/api/mcp" // this is your app/api/[transport]/route.ts
+  ]
+}
+```
+
 ## Integrating into your client
 
 When you want to use it in your MCP client of choice:
@@ -70,6 +98,7 @@ In order to add an MCP server to Claude Desktop you need to edit the configurati
   "command": "npx",
   "args": [
     "mcp-remote",
+    "-y",
     "http://localhost:3000/api/mcp" // this is your app/api/[transport]/route.ts
   ]
 }

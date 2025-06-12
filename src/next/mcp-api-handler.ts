@@ -8,7 +8,6 @@ import {
 import { createClient } from "redis";
 import { Socket } from "node:net";
 import { Readable } from "node:stream";
-import type { ServerOptions } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { BodyType } from "./server-response-adapter";
 import assert from "node:assert";
@@ -22,6 +21,7 @@ import { createEvent } from "../lib/log-helper";
 import { EventEmittingResponse } from "../lib/event-emitter.js";
 import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types";
 import { getAuthContext } from "./auth-context";
+import { ServerOptions } from ".";
 
 interface SerializedRequest {
   requestId: string;
@@ -239,6 +239,14 @@ export function initializeMcpApiHandler(
     disableSse,
   } = config;
 
+  const {
+    serverInfo = {
+      name: "mcp-typescript server on vercel",
+      version: "0.1.0",
+    },
+    ...mcpServerOptions
+  } = serverOptions;
+
   // If basePath is provided, derive endpoints from it
   const { streamableHttpEndpoint, sseEndpoint, sseMessageEndpoint } =
     calculateEndpoints({
@@ -296,14 +304,7 @@ export function initializeMcpApiHandler(
         );
 
         if (!statelessServer) {
-          statelessServer = new McpServer(
-            {
-              name: "mcp-typescript server on vercel",
-              version: "0.1.0",
-            },
-            serverOptions
-          );
-
+          statelessServer = new McpServer(serverInfo, mcpServerOptions);
           await initializeServer(statelessServer);
           await statelessServer.connect(statelessTransport);
         }
@@ -324,7 +325,6 @@ export function initializeMcpApiHandler(
           body: bodyContent,
           auth: req.auth, // Use the auth info that should already be set by withMcpAuth
         });
-        
 
         // Create a response that will emit events
         const wrappedRes = new EventEmittingResponse(
@@ -416,13 +416,7 @@ export function initializeMcpApiHandler(
           undefined,
       });
 
-      const server = new McpServer(
-        {
-          name: "mcp-typescript server on vercel",
-          version: "0.1.0",
-        },
-        serverOptions
-      );
+      const server = new McpServer(serverInfo, serverOptions);
       await initializeServer(server);
 
       servers.push(server);
@@ -698,7 +692,9 @@ function createFakeIncomingMessage(
   }
 
   // Create the IncomingMessage instance
-  const req = new IncomingMessage(socket) as IncomingMessage & { auth?: AuthInfo };
+  const req = new IncomingMessage(socket) as IncomingMessage & {
+    auth?: AuthInfo;
+  };
 
   // Set the properties
   req.method = method;
