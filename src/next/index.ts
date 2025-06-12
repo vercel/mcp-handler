@@ -12,7 +12,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
  */
 
 export type ServerOptions = McpServerOptions & {
-  mcpServerMetadata?: {
+  serverInfo?: {
     name: string;
     version: string;
   };

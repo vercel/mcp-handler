@@ -240,7 +240,7 @@ export function initializeMcpApiHandler(
   } = config;
 
   const {
-    mcpServerMetadata = {
+    serverInfo = {
       name: "mcp-typescript server on vercel",
       version: "0.1.0",
     },
@@ -304,7 +304,7 @@ export function initializeMcpApiHandler(
         );
 
         if (!statelessServer) {
-          statelessServer = new McpServer(mcpServerMetadata, mcpServerOptions);
+          statelessServer = new McpServer(serverInfo, mcpServerOptions);
           await initializeServer(statelessServer);
           await statelessServer.connect(statelessTransport);
         }
@@ -416,7 +416,7 @@ export function initializeMcpApiHandler(
           undefined,
       });
 
-      const server = new McpServer(mcpServerMetadata, serverOptions);
+      const server = new McpServer(serverInfo, serverOptions);
       await initializeServer(server);
 
       servers.push(server);
