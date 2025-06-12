@@ -1,5 +1,11 @@
 # @vercel/mcp-adapter
 
+## 0.11.0
+
+### Minor Changes
+
+- 7149159: Support adding serverMetadata to name and version the mcp server
+
 ## 0.10.0
 
 ### Minor Changes
