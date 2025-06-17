@@ -27,6 +27,9 @@ importers:
       '@changesets/cli':
         specifier: ^2.27.12
         version: 2.29.4
+      '@rollup/rollup-darwin-arm64':
+        specifier: ^4.43.0
+        version: 4.43.0
       '@types/node':
         specifier: ^22.15.8
         version: 22.15.32
@@ -2237,8 +2240,7 @@ snapshots:
   '@rollup/rollup-android-arm64@4.43.0':
     optional: true
 
-  '@rollup/rollup-darwin-arm64@4.43.0':
-    optional: true
+  '@rollup/rollup-darwin-arm64@4.43.0': {}
 
   '@rollup/rollup-darwin-x64@4.43.0':
     optional: true

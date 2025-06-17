@@ -55,6 +55,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.12",
+    "@rollup/rollup-darwin-arm64": "^4.43.0",
     "@types/node": "^22.15.8",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0",
