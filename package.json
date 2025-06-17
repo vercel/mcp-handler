@@ -53,6 +53,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.12",
+    "@modelcontextprotocol/sdk": "^1.12.3",
     "@rollup/rollup-darwin-arm64": "^4.43.0",
     "@types/node": "^22.15.8",
     "chalk": "^5.4.1",
