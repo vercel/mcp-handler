@@ -11,12 +11,18 @@
   },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": {
+        "import": "./dist/index.d.mts",
+        "require": "./dist/index.d.cjs"
+      },
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
     },
     "./next": {
-      "types": "./dist/next/index.d.ts",
+      "types": {
+        "import": "./dist/next/index.d.mts",
+        "require": "./dist/next/index.d.cjs"
+      },
       "import": "./dist/next/index.mjs",
       "require": "./dist/next/index.js"
     }
