@@ -189,8 +189,7 @@ const handler = createMcpHandler(
 const verifyToken = async (req: Request, bearerToken?: string): Promise<AuthInfo | undefined> => {
   if (!bearerToken) return undefined;
 
-  // TODO: Replace with actual token verification logic
-  // This is just an example implementation
+  // Replace this example with actual token verification logic
   // Return an AuthInfo object if verification succeeds
   // Otherwise, return undefined
   const isValid = bearerToken.startsWith('__TEST_VALUE__');
