@@ -1,7 +1,10 @@
-import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types";
+import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { createMcpHandler, experimental_withMcpAuth as withMcpAuth } from "@vercel/mcp-adapter";
 import { z } from "zod";
+import { verifyClerkToken } from '@clerk/mcp-tools/next'
+import { auth, clerkClient } from '@clerk/nextjs/server'
 
+const clerk = await clerkClient()
 // Define the handler with proper parameter validation
 const handler = createMcpHandler(
   server => {
@@ -32,40 +35,18 @@ const handler = createMcpHandler(
       },
     },
   },
-  // Route configuration
-  {
-    streamableHttpEndpoint: '/mcp',
-    sseEndpoint: '/sse',
-    sseMessageEndpoint: '/message',
-    basePath: '/api/mcp',
-    redisUrl: process.env.REDIS_URL,
-  }
+  {}
 );
 
 /**
  * Verify the bearer token and return auth information
  * In a real implementation, this would validate against your auth service
  */
-const verifyToken = async (req: Request, bearerToken?: string): Promise<AuthInfo | undefined> => {
+const verifyToken = async (_: Request, bearerToken?: string): Promise<AuthInfo | undefined> => {
     if (!bearerToken) return undefined;
     
-    // TODO: Replace with actual token verification logic
-    // This is just an example implementation
-    const isValid = bearerToken.startsWith('__TEST_VALUE__');
-    
-    if (!isValid) return undefined;
-    
-    return {
-        token: bearerToken,
-        scopes: ['read:messages', 'write:messages'],
-        clientId: 'example-client',
-        extra: {
-            userId: 'user-123',
-            // Add any additional user/client information here
-            permissions: ['user'],
-            timestamp: new Date().toISOString()
-        }
-    };
+    const clerkAuth = await auth({ acceptsToken: 'oauth_token' })
+    return verifyClerkToken(clerkAuth, bearerToken)
 }
 
 // Create the auth handler with required scopes
@@ -74,8 +55,8 @@ const authHandler = withMcpAuth(
     verifyToken,
     {
         required: true,
-        requiredScopes: ['read:messages'],
-        resourceMetadataPath: '/.well-known/oauth-protected-resource'
+        requiredScopes: ['openid'],
+        resourceMetadataPath: '/.well-known/oauth-protected-resource/mcp'
     }
 );
 
