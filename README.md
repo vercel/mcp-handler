@@ -154,7 +154,7 @@ interface Config {
 
 ## Authorization
 
-The MCP adapter supports OAuth Bearer Token authentication through the `experimental_withMcpAuth` wrapper. This allows you to protect your MCP endpoints and access authentication information in your tools.
+The MCP adapter supports the [MCP Authorization Specification](https://modelcontextprotocol.io/specification/draft/basic/authorization) per the  through the `experimental_withMcpAuth` wrapper. This allows you to protect your MCP endpoints and access authentication information in your tools.
 
 ### Basic Usage
 
