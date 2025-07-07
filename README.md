@@ -217,7 +217,7 @@ const authHandler = experimental_withMcpAuth(handler, verifyToken, {
 export { authHandler as GET, authHandler as POST };
 ```
 
-### OAuth Resource Metadata
+### OAuth Protected Resource Metadata
 
 When implementing authorization in MCP, you must define the OAuth [Protected Resource Metadata](https://modelcontextprotocol.io/specification/draft/basic/authorization#authorization-server-location) endpoint. This endpoint provides information about your MCP server's authentication requirements to clients.
 
