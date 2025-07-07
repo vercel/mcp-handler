@@ -247,7 +247,7 @@ This endpoint provides:
 The path to this endpoint should match the `resourceMetadataPath` option in your `withMcpAuth` configuration,
 which by default is `/.well-known/oauth-protected-resource` (the full URL will be `https://your-domain.com/.well-known/oauth-protected-resource`).
 
-### Authentication Flow
+### Authorization Flow
 
 1. Client makes a request with a Bearer token in the Authorization header
 2. The `verifyToken` function validates the token and returns auth info
