@@ -7,5 +7,4 @@ export {
   protectedResourceHandler,
   generateProtectedResourceMetadata,
   metadataCorsOptionsRequestHandler,
-  OAuthProtectedResourceMetadata,
 } from "./next/auth-metadata";
