@@ -66,14 +66,12 @@ export function protectedResourceHandler({
             resourceUrl: origin,
         });
 
-        return Response.json(metadata, {
-            headers: Object.assign(
-                {
-                    "Cache-Control": "max-age=3600",
-                    "Content-Type": "application/json",
-                },
-                corsHeaders
-            ),
+        return new Response(JSON.stringify(metadata), {
+            headers: {
+                ...corsHeaders,
+                "Cache-Control": "max-age=3600",
+                "Content-Type": "application/json",
+            },
         });
     };
 }
