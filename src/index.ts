@@ -2,3 +2,10 @@
 export { default as createMcpHandler } from "./next";
 
 export { withMcpAuth as experimental_withMcpAuth } from "./next/auth-wrapper";
+
+export {
+  protectedResourceHandler,
+  generateProtectedResourceMetadata,
+  metadataCorsOptionsRequestHandler,
+  OAuthProtectedResourceMetadata,
+} from "./next/auth-metadata";
