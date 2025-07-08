@@ -1,6 +1,13 @@
 import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { createMcpHandler, experimental_withMcpAuth as withMcpAuth } from "@vercel/mcp-adapter";
 import { z } from "zod";
+import * as stytch from "stytch";
+
+const client = new stytch.Client({
+  project_id: process.env.STYTCH_PROJECT_ID as string,
+  secret: process.env.STYTCH_SECRET as string,
+  custom_base_url: `https://${process.env.STYTCH_DOMAIN}`,
+});
 
 // Define the handler with proper parameter validation
 const handler = createMcpHandler(
@@ -39,24 +46,17 @@ const handler = createMcpHandler(
  * Verify the bearer token and return auth information
  * In a real implementation, this would validate against your auth service
  */
-const verifyToken = async (_: Request, bearerToken?: string): Promise<AuthInfo | undefined> => {
-    if (!bearerToken) return undefined;
-    
-    const isValid = bearerToken.startsWith('__TEST_VALUE__');
-    
-    if (!isValid) return undefined;
-    
-    return {
-        token: bearerToken,
-        scopes: ['read:messages', 'write:messages'],
-        clientId: 'example-client',
-        extra: {
-            userId: 'user-123',
-            // Add any additional user/client information here
-            permissions: ['user'],
-            timestamp: new Date().toISOString()
-        }
-    };
+const verifyToken = async (_: Request, token?: string): Promise<AuthInfo | undefined> => {
+  if (!token) return;
+  const { audience, scope, expires_at, ...rest } =
+    await client.idp.introspectTokenLocal(token);
+  return {
+    token,
+    clientId: audience as string,
+    scopes: scope.split(" "),
+    expiresAt: expires_at,
+    extra: rest,
+  } satisfies AuthInfo;
 }
 
 // Create the auth handler with required scopes

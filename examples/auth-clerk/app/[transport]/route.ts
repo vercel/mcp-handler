@@ -42,11 +42,11 @@ const handler = createMcpHandler(
  * Verify the bearer token and return auth information
  * In a real implementation, this would validate against your auth service
  */
-const verifyToken = async (_: Request, bearerToken?: string): Promise<AuthInfo | undefined> => {
-    if (!bearerToken) return undefined;
+const verifyToken = async (_: Request, token?: string): Promise<AuthInfo | undefined> => {
+    if (!token) return undefined;
     
     const clerkAuth = await auth({ acceptsToken: 'oauth_token' })
-    return verifyClerkToken(clerkAuth, bearerToken)
+    return verifyClerkToken(clerkAuth, token)
 }
 
 // Create the auth handler with required scopes

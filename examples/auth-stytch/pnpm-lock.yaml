@@ -23,6 +23,9 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.1.0(react@19.1.0)
+      stytch:
+        specifier: ^12.24.0
+        version: 12.24.0
       zod:
         specifier: ^3.25.75
         version: 3.25.75
@@ -626,6 +629,9 @@ packages:
     resolution: {integrity: sha512-rg9zJN+G4n2nfJl5MW3BMygZX56zKPNVEYYqq7adpmMh4Jn2QNEwhvQlFy6jPVdcod7txZtKHWnyZiA3a0zP7A==}
     hasBin: true
 
+  jose@5.10.0:
+    resolution: {integrity: sha512-s+3Al/p9g32Iq+oqXxkW//7jk2Vig6FF1CFqzVXoTUXt2qz89YWbL+OwS17NFYEvxC35n0FKeGO2LGYSxeM2Gg==}
+
   json-schema-traverse@0.4.1:
     resolution: {integrity: sha512-xbbCH5dCYU5T8LcEhhuh7HJ88HXuW3qsI3Y0zOZFKfZEHcpWiHU/Jxzk629Brsab/mMiHQti9wMP+845RPe3Vg==}
 
@@ -925,6 +931,10 @@ packages:
       babel-plugin-macros:
         optional: true
 
+  stytch@12.24.0:
+    resolution: {integrity: sha512-+ZR1pEln4OPYDpn5Ddpw+p4a0JfbKwZBbKc44vVKKh5DD6MD6LVwR/Q9+5O26LG/wLRNdjdQoNuEInvnWIYPFQ==}
+    engines: {node: '>= 18.0.0'}
+
   tailwindcss@4.1.11:
     resolution: {integrity: sha512-2E9TBm6MDD/xKYe+dvJZAmg3yxIEDNRc0jwlNyDg/4Fil2QcSLjFKGVff0lAf1jjeaArlG/M75Ey/EYr/OJtBA==}
 
@@ -954,6 +964,10 @@ packages:
 
   undici-types@6.21.0:
     resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
+
+  undici@6.21.3:
+    resolution: {integrity: sha512-gBLkYIlEnSp8pFbT64yFgGE6UIB9tAkhukC23PmMDCe5Nd+cRqKxSjw5y54MK2AZMgZfJWMaNE4nYUHgi1XEOw==}
+    engines: {node: '>=18.17'}
 
   unpipe@1.0.0:
     resolution: {integrity: sha512-pjy2bYhSsufwWlKwPc+l3cN7+wuJlK6uz0YdJEOlQDbl6jo/YlPi4mb8agUkVC8BF7V8NuzeyPNqRksA3hztKQ==}
@@ -1520,6 +1534,8 @@ snapshots:
 
   jiti@2.4.2: {}
 
+  jose@5.10.0: {}
+
   json-schema-traverse@0.4.1: {}
 
   lightningcss-darwin-arm64@1.30.1:
@@ -1819,6 +1835,11 @@ snapshots:
       client-only: 0.0.1
       react: 19.1.0
 
+  stytch@12.24.0:
+    dependencies:
+      jose: 5.10.0
+      undici: 6.21.3
+
   tailwindcss@4.1.11: {}
 
   tapable@2.2.2: {}
@@ -1845,6 +1866,8 @@ snapshots:
   typescript@5.8.3: {}
 
   undici-types@6.21.0: {}
+
+  undici@6.21.3: {}
 
   unpipe@1.0.0: {}
 
