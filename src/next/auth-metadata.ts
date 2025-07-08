@@ -1,6 +1,6 @@
 /**
- * CORS headers for OAuth metadata endpoints.
- * Configured to allow any origin to make endpoints accessible to web-based MCP clients.
+ * CORS headers for OAuth Protected Resource Metadata endpoint.
+ * Configured to allow any origin to make the endpoint accessible to web-based MCP clients.
  */
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
