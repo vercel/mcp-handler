@@ -152,6 +152,108 @@ interface Config {
 }
 ```
 
+## Authorization
+
+The MCP adapter supports the [MCP Authorization Specification](https://modelcontextprotocol.io/specification/draft/basic/authorization) per the  through the `experimental_withMcpAuth` wrapper. This allows you to protect your MCP endpoints and access authentication information in your tools.
+
+### Basic Usage
+
+```typescript
+// app/api/[transport]/route.ts
+import { createMcpHandler, experimental_withMcpAuth } from "@vercel/mcp-adapter";
+
+// Create your handler as normal
+const handler = createMcpHandler(
+  (server) => {
+    server.tool(
+      "echo",
+      "Echo a message",
+      { message: z.string() },
+      async ({ message }, extra) => {
+        // Access auth info in your tools via extra.authInfo
+        return {
+          content: [{ 
+            type: "text", 
+            text: `Echo: ${message}${extra.authInfo?.token ? ` for user ${extra.authInfo.clientId}` : ''}`
+          }],
+        };
+      }
+    );
+  },
+  {
+    // Optional server options
+  }
+);
+
+// Wrap your handler with authorization
+const verifyToken = async (req: Request, bearerToken?: string): Promise<AuthInfo | undefined> => {
+  if (!bearerToken) return undefined;
+
+  // Replace this example with actual token verification logic
+  // Return an AuthInfo object if verification succeeds
+  // Otherwise, return undefined
+  const isValid = bearerToken.startsWith('__TEST_VALUE__');
+  
+  if (!isValid) return undefined;
+  
+  return {
+    token: bearerToken,
+    scopes: ["read:stuff"], // Add relevant scopes
+    clientId: "user123",    // Add user/client identifier
+    extra: {               // Optional extra information
+      userId: "123"
+    }
+  };
+};
+
+// Make authorization required
+const authHandler = experimental_withMcpAuth(handler, verifyToken, { 
+  required: true,                    // Make auth required for all requests
+  requiredScopes: ["read:stuff"],    // Optional: Require specific scopes
+  resourceMetadataPath: "/.well-known/oauth-protected-resource" // Optional: Custom metadata path
+});
+
+export { authHandler as GET, authHandler as POST };
+```
+
+### OAuth Protected Resource Metadata
+
+When implementing authorization in MCP, you must define the OAuth [Protected Resource Metadata](https://modelcontextprotocol.io/specification/draft/basic/authorization#authorization-server-location) endpoint. This endpoint provides information about your MCP server's authentication requirements to clients.
+
+Create a new file at `app/.well-known/oauth-protected-resource/route.ts`:
+
+```typescript
+export async function GET(req: Request) {
+  const origin = new URL(req.url).origin;
+  
+  return Response.json({
+    resource: `${origin}`,
+    authorization_servers: [`https://authorization-server-issuer.com`],
+    scopes_supported: ["openid"],
+    resource_name: "MCP Server",
+    resource_documentation: `${origin}/docs`
+  });
+}
+```
+
+This endpoint provides:
+- `resource`: The URL of your MCP server
+- `authorization_servers`: Array of OAuth authorization server Issuer URLs that can issue valid tokens
+- `scopes_supported`: Array of OAuth scopes supported by your server
+- `resource_name`: Human-readable name for your MCP server
+- `resource_documentation`: URL to your server's documentation
+
+The path to this endpoint should match the `resourceMetadataPath` option in your `withMcpAuth` configuration,
+which by default is `/.well-known/oauth-protected-resource` (the full URL will be `https://your-domain.com/.well-known/oauth-protected-resource`).
+
+### Authorization Flow
+
+1. Client makes a request with a Bearer token in the Authorization header
+2. The `verifyToken` function validates the token and returns auth info
+3. If authentication is required and fails, a 401 response is returned
+4. If specific scopes are required and missing, a 403 response is returned
+5. On successful authentication, the auth info is available in tool handlers via `extra.authInfo`
+
 ## Features
 
 - **Framework Support**: Currently supports Next.js with more framework adapters coming soon
