@@ -20,7 +20,7 @@ import type {
 import { createEvent } from "../lib/log-helper";
 import { EventEmittingResponse } from "../lib/event-emitter.js";
 import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types";
-import { getAuthContext } from "./auth-context";
+import { getAuthContext } from "../auth/auth-context";
 import { ServerOptions } from ".";
 
 interface SerializedRequest {

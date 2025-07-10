@@ -2,7 +2,6 @@
 
 A Vercel adapter for the Model Context Protocol (MCP), enabling real-time communication between your applications and AI models. Currently supports Next.js with more framework adapters coming soon.
 
-
 ## Installation
 
 ```bash
@@ -154,13 +153,13 @@ interface Config {
 
 ## Authorization
 
-The MCP adapter supports the [MCP Authorization Specification](https://modelcontextprotocol.io/specification/draft/basic/authorization) per the  through the `experimental_withMcpAuth` wrapper. This allows you to protect your MCP endpoints and access authentication information in your tools.
+The MCP adapter supports the [MCP Authorization Specification](https://modelcontextprotocol.io/specification/draft/basic/authorization) per the through the `withMcpAuth` wrapper. This allows you to protect your MCP endpoints and access authentication information in your tools.
 
 ### Basic Usage
 
 ```typescript
 // app/api/[transport]/route.ts
-import { createMcpHandler, experimental_withMcpAuth } from "@vercel/mcp-adapter";
+import { createMcpHandler, withMcpAuth } from "@vercel/mcp-adapter";
 
 // Create your handler as normal
 const handler = createMcpHandler(
@@ -172,10 +171,16 @@ const handler = createMcpHandler(
       async ({ message }, extra) => {
         // Access auth info in your tools via extra.authInfo
         return {
-          content: [{ 
-            type: "text", 
-            text: `Echo: ${message}${extra.authInfo?.token ? ` for user ${extra.authInfo.clientId}` : ''}`
-          }],
+          content: [
+            {
+              type: "text",
+              text: `Echo: ${message}${
+                extra.authInfo?.token
+                  ? ` for user ${extra.authInfo.clientId}`
+                  : ""
+              }`,
+            },
+          ],
         };
       }
     );
@@ -186,31 +191,35 @@ const handler = createMcpHandler(
 );
 
 // Wrap your handler with authorization
-const verifyToken = async (req: Request, bearerToken?: string): Promise<AuthInfo | undefined> => {
+const verifyToken = async (
+  req: Request,
+  bearerToken?: string
+): Promise<AuthInfo | undefined> => {
   if (!bearerToken) return undefined;
 
   // Replace this example with actual token verification logic
   // Return an AuthInfo object if verification succeeds
   // Otherwise, return undefined
-  const isValid = bearerToken.startsWith('__TEST_VALUE__');
-  
+  const isValid = bearerToken.startsWith("__TEST_VALUE__");
+
   if (!isValid) return undefined;
-  
+
   return {
     token: bearerToken,
     scopes: ["read:stuff"], // Add relevant scopes
-    clientId: "user123",    // Add user/client identifier
-    extra: {               // Optional extra information
-      userId: "123"
-    }
+    clientId: "user123", // Add user/client identifier
+    extra: {
+      // Optional extra information
+      userId: "123",
+    },
   };
 };
 
 // Make authorization required
-const authHandler = experimental_withMcpAuth(handler, verifyToken, { 
-  required: true,                    // Make auth required for all requests
-  requiredScopes: ["read:stuff"],    // Optional: Require specific scopes
-  resourceMetadataPath: "/.well-known/oauth-protected-resource" // Optional: Custom metadata path
+const authHandler = withMcpAuth(handler, verifyToken, {
+  required: true, // Make auth required for all requests
+  requiredScopes: ["read:stuff"], // Optional: Require specific scopes
+  resourceMetadataPath: "/.well-known/oauth-protected-resource", // Optional: Custom metadata path
 });
 
 export { authHandler as GET, authHandler as POST };
@@ -226,17 +235,18 @@ Create a new file at `app/.well-known/oauth-protected-resource/route.ts`:
 import {
   protectedResourceHandler,
   metadataCorsOptionsRequestHandler,
-} from '@vercel/mcp-adapter'
+} from "@vercel/mcp-adapter";
 
 const handler = protectedResourceHandler({
-  // Specify the Issuer URL of the associated Authorization Server 
-  authServerUrls: ["https://auth-server.com"]
-})
+  // Specify the Issuer URL of the associated Authorization Server
+  authServerUrls: ["https://auth-server.com"],
+});
 
-export { handler as GET, metadataCorsOptionsRequestHandler as OPTIONS }
+export { handler as GET, metadataCorsOptionsRequestHandler as OPTIONS };
 ```
 
 This endpoint provides:
+
 - `resource`: The URL of your MCP server
 - `authorization_servers`: Array of OAuth authorization server Issuer URLs that can issue valid tokens
 

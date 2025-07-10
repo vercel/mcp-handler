@@ -20,11 +20,11 @@
     },
     "./next": {
       "types": {
-        "import": "./dist/next/index.d.mts",
-        "require": "./dist/next/index.d.cjs"
+        "import": "./dist/index.d.mts",
+        "require": "./dist/index.d.cjs"
       },
-      "import": "./dist/next/index.mjs",
-      "require": "./dist/next/index.js"
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
     }
   },
   "files": [
