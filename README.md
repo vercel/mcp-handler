@@ -223,25 +223,22 @@ When implementing authorization in MCP, you must define the OAuth [Protected Res
 Create a new file at `app/.well-known/oauth-protected-resource/route.ts`:
 
 ```typescript
-export async function GET(req: Request) {
-  const origin = new URL(req.url).origin;
-  
-  return Response.json({
-    resource: `${origin}`,
-    authorization_servers: [`https://authorization-server-issuer.com`],
-    scopes_supported: ["openid"],
-    resource_name: "MCP Server",
-    resource_documentation: `${origin}/docs`
-  });
-}
+import {
+  protectedResourceHandler,
+  metadataCorsOptionsRequestHandler,
+} from '@vercel/mcp-adapter'
+
+const handler = protectedResourceHandler({
+  // Specify the Issuer URL of the associated Authorization Server 
+  authServerUrls: ["https://auth-server.com"]
+})
+
+export { handler as GET, metadataCorsOptionsRequestHandler as OPTIONS }
 ```
 
 This endpoint provides:
 - `resource`: The URL of your MCP server
 - `authorization_servers`: Array of OAuth authorization server Issuer URLs that can issue valid tokens
-- `scopes_supported`: Array of OAuth scopes supported by your server
-- `resource_name`: Human-readable name for your MCP server
-- `resource_documentation`: URL to your server's documentation
 
 The path to this endpoint should match the `resourceMetadataPath` option in your `withMcpAuth` configuration,
 which by default is `/.well-known/oauth-protected-resource` (the full URL will be `https://your-domain.com/.well-known/oauth-protected-resource`).
