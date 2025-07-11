@@ -1,4 +1,4 @@
-# @vercel/mcp-adapter
+# mcp-handler
 
 ## 0.11.2
 
