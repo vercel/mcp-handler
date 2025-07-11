@@ -1,10 +1,15 @@
 // Re-export the Next.js adapter
-export { default as createMcpHandler } from "./next";
+export { default as createMcpHandler } from "./handler";
 
-export { withMcpAuth as experimental_withMcpAuth } from "./next/auth-wrapper";
+/**
+ * @deprecated Use withMcpAuth instead
+ */
+export { withMcpAuth as experimental_withMcpAuth } from "./auth/auth-wrapper";
+
+export { withMcpAuth } from "./auth/auth-wrapper";
 
 export {
   protectedResourceHandler,
   generateProtectedResourceMetadata,
   metadataCorsOptionsRequestHandler,
-} from "./next/auth-metadata";
+} from "./auth/auth-metadata";
