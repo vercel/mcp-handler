@@ -1,5 +1,16 @@
 # mcp-handler
 
+## 1.0.0
+
+### Major Changes
+
+- 201a1c7: Move package from @vercle/mcp-adapter to mcp-handler
+
+### Minor Changes
+
+- 488dfe4: Refactor packaging and make withMcpAuth stable
+- 02df830: Add RFC 9728 OAuth Protected Resource Metadata handler
+
 ## 0.11.2
 
 ### Patch Changes
