@@ -1,5 +1,5 @@
 {
-  "name": "@vercel/mcp-adapter",
+  "name": "mcp-handler",
   "version": "0.11.2",
   "description": "Vercel MCP Adapter for Next.js and other frameworks",
   "main": "dist/index.js",
@@ -7,6 +7,7 @@
   "type": "commonjs",
   "bin": {
     "create-mcp-route": "./dist/cli/index.js",
+    "mcp-handler": "./dist/cli/index.js",
     "@vercel/mcp-adapter": "./dist/cli/index.js"
   },
   "exports": {

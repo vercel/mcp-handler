@@ -1,24 +1,24 @@
-# @vercel/mcp-adapter
+# mcp-handler
 
 A Vercel adapter for the Model Context Protocol (MCP), enabling real-time communication between your applications and AI models. Currently supports Next.js with more framework adapters coming soon.
 
 ## Installation
 
 ```bash
-npm install @vercel/mcp-adapter @modelcontextprotocol/sdk
+npm install mcp-handler @modelcontextprotocol/sdk
 # or
-yarn add @vercel/mcp-adapter @modelcontextprotocol/sdk
+yarn add mcp-handler @modelcontextprotocol/sdk
 # or
-pnpm add @vercel/mcp-adapter @modelcontextprotocol/sdk
+pnpm add mcp-handler @modelcontextprotocol/sdk
 # or
-bun add @vercel/mcp-adapter @modelcontextprotocol/sdk
+bun add mcp-handler @modelcontextprotocol/sdk
 ```
 
 ## Next.js Usage
 
 ```typescript
 // app/api/[transport]/route.ts
-import { createMcpHandler } from "@vercel/mcp-adapter";
+import { createMcpHandler } from "mcp-handler";
 const handler = createMcpHandler(
   (server) => {
     server.tool(
@@ -159,7 +159,7 @@ The MCP adapter supports the [MCP Authorization Specification](https://modelcont
 
 ```typescript
 // app/api/[transport]/route.ts
-import { createMcpHandler, withMcpAuth } from "@vercel/mcp-adapter";
+import { createMcpHandler, withMcpAuth } from "mcp-handler";
 
 // Create your handler as normal
 const handler = createMcpHandler(
@@ -235,7 +235,7 @@ Create a new file at `app/.well-known/oauth-protected-resource/route.ts`:
 import {
   protectedResourceHandler,
   metadataCorsOptionsRequestHandler,
-} from "@vercel/mcp-adapter";
+} from "mcp-handler";
 
 const handler = protectedResourceHandler({
   // Specify the Issuer URL of the associated Authorization Server
