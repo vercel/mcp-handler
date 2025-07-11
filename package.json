@@ -7,6 +7,7 @@
   "type": "commonjs",
   "bin": {
     "create-mcp-route": "./dist/cli/index.js",
+    "mcp-handler": "./dist/cli/index.js",
     "@vercel/mcp-adapter": "./dist/cli/index.js"
   },
   "exports": {

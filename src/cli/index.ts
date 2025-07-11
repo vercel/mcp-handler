@@ -7,7 +7,7 @@ import chalk from "chalk";
 
 const program = new Command();
 
-const ROUTE_TEMPLATE = `import { createMcpHandler } from '@vercel/mcp-adapter';
+const ROUTE_TEMPLATE = `import { createMcpHandler } from 'mcp-handler';
 import { z } from 'zod';
 
 const handler = createMcpHandler(
@@ -66,7 +66,7 @@ async function installDependencies(
   packageManager: "npm" | "pnpm" | "yarn" | "bun"
 ) {
   const execSync = (await import("node:child_process")).execSync;
-  const dependencies = ["@vercel/mcp-adapter", "zod"];
+  const dependencies = ["mcp-handler", "zod"];
 
   const commands = {
     npm: `npm install ${dependencies.join(" ")}`,
@@ -125,7 +125,7 @@ async function init() {
 }
 
 program
-  .name("@vercel/mcp-adapter")
+  .name("mcp-handler")
   .description("Initialize MCP route handler in your Next.js project")
   .action(init);
 

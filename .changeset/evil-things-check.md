@@ -1,5 +1,5 @@
 ---
-"@vercel/mcp-adapter": minor
+"mcp-handler": minor
 ---
 
 Refactor packaging and make withMcpAuth stable
