@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateEndpoints } from '../src/next/mcp-api-handler';
+import { calculateEndpoints } from '../src/handler/mcp-api-handler';
 
 describe('calculateEndpoints', () => {
   it('derives all endpoints from basePath', () => {
