@@ -25,11 +25,11 @@ export function protectedResourceHandler({
     authServerUrls: string[];
 }) {
     return (req: Request) => {
-        const origin = new URL(req.url).origin;
+        const resource = req.url.toString().replace("/.well-known/oauth-protected-resource", "");
 
         const metadata = generateProtectedResourceMetadata({
             authServerUrls,
-            resourceUrl: origin,
+            resourceUrl: resource,
         });
 
         return new Response(JSON.stringify(metadata), {
