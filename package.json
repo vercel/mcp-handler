@@ -42,7 +42,8 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "test": "vitest",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
     "version-packages": "changeset version",
     "changeset": "changeset",
     "release": "pnpm build && changeset publish"
