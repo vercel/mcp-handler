@@ -5,13 +5,13 @@ A Vercel adapter for the Model Context Protocol (MCP), enabling real-time commun
 ## Installation
 
 ```bash
-npm install mcp-handler @modelcontextprotocol/sdk
+npm install mcp-handler @modelcontextprotocol/sdk zod@^3
 # or
-yarn add mcp-handler @modelcontextprotocol/sdk
+yarn add mcp-handler @modelcontextprotocol/sdk zod@^3
 # or
-pnpm add mcp-handler @modelcontextprotocol/sdk
+pnpm add mcp-handler @modelcontextprotocol/sdk zod@^3
 # or
-bun add mcp-handler @modelcontextprotocol/sdk
+bun add mcp-handler @modelcontextprotocol/sdk zod@^3
 ```
 
 ## Next.js Usage
@@ -19,6 +19,7 @@ bun add mcp-handler @modelcontextprotocol/sdk
 ```typescript
 // app/api/[transport]/route.ts
 import { createMcpHandler } from "mcp-handler";
+import { z } from "zod";
 const handler = createMcpHandler(
   (server) => {
     server.tool(
@@ -159,6 +160,7 @@ The MCP adapter supports the [MCP Authorization Specification](https://modelcont
 
 ```typescript
 // app/api/[transport]/route.ts
+import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 
 // Create your handler as normal
