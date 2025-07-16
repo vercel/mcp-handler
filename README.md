@@ -162,6 +162,7 @@ The MCP adapter supports the [MCP Authorization Specification](https://modelcont
 // app/api/[transport]/route.ts
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
+import { z } from "zod";
 
 // Create your handler as normal
 const handler = createMcpHandler(
