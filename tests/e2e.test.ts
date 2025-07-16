@@ -10,7 +10,7 @@ import type { AddressInfo } from "node:net";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { createMcpHandler } from "../src/index";
-import { withMcpAuth } from "../src/next/auth-wrapper";
+import { withMcpAuth } from "../src/auth/auth-wrapper";
 
 describe("e2e", () => {
   let server: Server;
