@@ -25,7 +25,16 @@ export function protectedResourceHandler({
     authServerUrls: string[];
 }) {
     return (req: Request) => {
-        const resource = req.url.toString().replace("/.well-known/oauth-protected-resource", "");
+        const resourceUrl = new URL(req.url);
+
+        resourceUrl.pathname = resourceUrl.pathname
+          .replace(/^\/\.well-known\/[^\/]+/, "");
+
+        // The URL class does not allow for empty `pathname` and will replace it
+        // with "/". Here, we correct that.
+        const resource = resourceUrl.pathname === '/'
+          ? resourceUrl.toString().replace(/\/$/, '')
+          : resourceUrl.toString();
 
         const metadata = generateProtectedResourceMetadata({
             authServerUrls,
@@ -43,13 +52,15 @@ export function protectedResourceHandler({
 }
 
 /**
- * Generates protected resource metadata for the given auth server urls and
- * resource server url.
+ * Generates protected resource metadata for the given auth server URLs and
+ * protected resource identifier. The protected resource identifier, as defined
+ * in RFC 9728, should be a a URL that uses the https scheme and has no fragment
+ * component.
  *
  * @param authServerUrls - Array of issuer URLs of the authorization servers. Each URL should 
  *                        match the "issuer" field in the respective authorization server's 
  *                        OAuth metadata (RFC 8414).
- * @param resourceUrl - URL of the resource server
+ * @param resourceUrl - the protected resource identifier
  * @param additionalMetadata - Additional metadata fields to include in the response
  * @returns Protected resource metadata, serializable to JSON
  */
