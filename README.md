@@ -149,6 +149,68 @@ interface Config {
   basePath?: string; // Base path for MCP endpoints
   maxDuration?: number; // Maximum duration for SSE connections in seconds
   verboseLogs?: boolean; // Log debugging information
+  logger?: Logger; // Custom logger implementation
+}
+```
+
+### Custom Logger
+
+You can provide a custom logger implementation to handle all logging from the MCP adapter. This is useful for integrating with existing logging systems or adding custom formatting.
+
+```typescript
+import { createMcpHandler, Logger } from "mcp-handler";
+
+// Custom logger with timestamp and prefix
+const customLogger: Logger = {
+  log: (...args) => console.log(`[${new Date().toISOString()}] [MCP]`, ...args),
+  error: (...args) => console.error(`[${new Date().toISOString()}] [MCP ERROR]`, ...args),
+  warn: (...args) => console.warn(`[${new Date().toISOString()}] [MCP WARN]`, ...args),
+  info: (...args) => console.info(`[${new Date().toISOString()}] [MCP INFO]`, ...args),
+  debug: (...args) => console.debug(`[${new Date().toISOString()}] [MCP DEBUG]`, ...args),
+};
+
+// Or create a logger that respects verboseLogs setting
+function createCustomLogger(verboseLogs: boolean): Logger {
+  return {
+    log: (...args) => {
+      if (verboseLogs) console.log(`[MCP]`, ...args);
+    },
+    error: (...args) => {
+      if (verboseLogs) console.error(`[MCP ERROR]`, ...args);
+    },
+    warn: (...args) => {
+      if (verboseLogs) console.warn(`[MCP WARN]`, ...args);
+    },
+    info: (...args) => {
+      if (verboseLogs) console.info(`[MCP INFO]`, ...args);
+    },
+    debug: (...args) => {
+      if (verboseLogs) console.debug(`[MCP DEBUG]`, ...args);
+    },
+  };
+}
+
+const handler = createMcpHandler(
+  (server) => {
+    // Your server setup
+  },
+  {},
+  {
+    logger: createCustomLogger(true), // Custom logger takes precedence over verboseLogs
+    verboseLogs: false, // This will be ignored when logger is provided
+  }
+);
+```
+
+The Logger interface requires these methods:
+
+```typescript
+interface Logger {
+  log: (...args: unknown[]) => void;
+  error: (...args: unknown[]) => void;
+  warn: (...args: unknown[]) => void;
+  info: (...args: unknown[]) => void;
+  debug: (...args: unknown[]) => void;
 }
 ```
 
