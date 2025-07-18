@@ -102,18 +102,6 @@ export type Config = {
    * Custom logger implementation.
    * If provided, this logger will be used instead of the default console logger.
    * Takes precedence over the verboseLogs option.
-   * @example
-   * ```typescript
-   * const config = {
-   *   logger: {
-   *     log: (...args) => console.log('[MCP]', ...args),
-   *     error: (...args) => console.error('[MCP ERROR]', ...args),
-   *     warn: (...args) => console.warn('[MCP WARN]', ...args),
-   *     info: (...args) => console.info('[MCP INFO]', ...args),
-   *     debug: (...args) => console.debug('[MCP DEBUG]', ...args),
-   *   }
-   * };
-   * ```
    */
   logger?: Logger;
 };

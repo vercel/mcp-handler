@@ -5,19 +5,6 @@ export type LogLevel = "log" | "error" | "warn" | "info" | "debug";
 
 /**
  * Logger interface for custom logging implementations
- * 
- * @example
- * ```typescript
- * import { Logger } from "mcp-handler";
- * 
- * const customLogger: Logger = {
- *   log: (...args) => myLogger.info(...args),
- *   error: (...args) => myLogger.error(...args),
- *   warn: (...args) => myLogger.warn(...args),
- *   info: (...args) => myLogger.info(...args),
- *   debug: (...args) => myLogger.debug(...args),
- * };
- * ```
  */
 export interface Logger {
   /**
@@ -62,13 +49,6 @@ export interface DefaultLoggerOptions {
  * 
  * @param options - Configuration options for the default logger
  * @returns A Logger instance that logs to the console
- * 
- * @example
- * ```typescript
- * import { createDefaultLogger } from "mcp-handler";
- * 
- * const logger = createDefaultLogger({ verboseLogs: true });
- * ```
  */
 export function createDefaultLogger(options: DefaultLoggerOptions = {}): Logger {
   const { verboseLogs = false } = options;
