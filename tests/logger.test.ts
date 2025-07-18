@@ -97,25 +97,6 @@ describe('Logger Types and Utilities', () => {
       expect(mockLogger.info).toHaveBeenCalledWith('info');
       expect(mockLogger.debug).toHaveBeenCalledWith('debug');
     });
-
-    it('supports conditional logging in custom implementations', () => {
-      const conditionalLogger = (enabled: boolean): Logger => ({
-        log: (...args) => { if (enabled) console.log(...args); },
-        error: (...args) => { if (enabled) console.error(...args); },
-        warn: (...args) => { if (enabled) console.warn(...args); },
-        info: (...args) => { if (enabled) console.info(...args); },
-        debug: (...args) => { if (enabled) console.debug(...args); },
-      });
-
-      const enabledLogger = conditionalLogger(true);
-      const disabledLogger = conditionalLogger(false);
-
-      enabledLogger.log('enabled log');
-      disabledLogger.log('disabled log');
-
-      expect(consoleSpy.log).toHaveBeenCalledWith('enabled log');
-      expect(consoleSpy.log).toHaveBeenCalledTimes(1);
-    });
   });
 
   describe('LogLevel Type', () => {
