@@ -169,34 +169,13 @@ const customLogger: Logger = {
   debug: (...args) => console.debug(`[${new Date().toISOString()}] [MCP DEBUG]`, ...args),
 };
 
-// Or create a logger that respects verboseLogs setting
-function createCustomLogger(verboseLogs: boolean): Logger {
-  return {
-    log: (...args) => {
-      if (verboseLogs) console.log(`[MCP]`, ...args);
-    },
-    error: (...args) => {
-      if (verboseLogs) console.error(`[MCP ERROR]`, ...args);
-    },
-    warn: (...args) => {
-      if (verboseLogs) console.warn(`[MCP WARN]`, ...args);
-    },
-    info: (...args) => {
-      if (verboseLogs) console.info(`[MCP INFO]`, ...args);
-    },
-    debug: (...args) => {
-      if (verboseLogs) console.debug(`[MCP DEBUG]`, ...args);
-    },
-  };
-}
-
 const handler = createMcpHandler(
   (server) => {
     // Your server setup
   },
   {},
   {
-    logger: createCustomLogger(true), // Custom logger takes precedence over verboseLogs
+    logger: customLogger, // Custom logger takes precedence over verboseLogs
     verboseLogs: false, // This will be ignored when logger is provided
   }
 );
