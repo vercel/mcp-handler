@@ -181,18 +181,6 @@ const handler = createMcpHandler(
 );
 ```
 
-The Logger interface requires these methods:
-
-```typescript
-interface Logger {
-  log: (...args: unknown[]) => void;
-  error: (...args: unknown[]) => void;
-  warn: (...args: unknown[]) => void;
-  info: (...args: unknown[]) => void;
-  debug: (...args: unknown[]) => void;
-}
-```
-
 ## Authorization
 
 The MCP adapter supports the [MCP Authorization Specification](https://modelcontextprotocol.io/specification/draft/basic/authorization) per the through the `withMcpAuth` wrapper. This allows you to protect your MCP endpoints and access authentication information in your tools.
