@@ -1,5 +1,11 @@
 # mcp-handler
 
+## 1.0.1
+
+### Patch Changes
+
+- d829aa6: prm resource identifier calculation accounts for paths
+
 ## 1.0.0
 
 ### Major Changes
