@@ -1,4 +1,6 @@
-import type { RedisClientType } from 'redis';
+import { createClient } from 'redis';
+
+type RedisClientType = ReturnType<typeof createClient>;
 
 export interface SessionManager {
   sessionId: string;
