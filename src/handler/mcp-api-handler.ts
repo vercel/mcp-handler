@@ -179,6 +179,16 @@ export function calculateEndpoints({
 let redisPublisher: ReturnType<typeof createClient>;
 let redis: ReturnType<typeof createClient>;
 
+// WeakMap to track server metadata without preventing GC
+const serverMetadata = new WeakMap<McpServer, {
+  sessionId: string;
+  createdAt: Date;
+  transport: SSEServerTransport;
+}>();
+
+// Periodic cleanup interval
+let cleanupInterval: NodeJS.Timeout | null = null;
+
 async function initializeRedis({
   redisUrl,
   logger,
@@ -264,6 +274,49 @@ export function initializeMcpApiHandler(
   const statelessTransport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
   });
+  
+  // Start periodic cleanup if not already running
+  if (!cleanupInterval) {
+    cleanupInterval = setInterval(() => {
+      const now = Date.now();
+      const staleThreshold = 5 * 60 * 1000; // 5 minutes
+      
+      servers = servers.filter(server => {
+        const metadata = serverMetadata.get(server);
+        if (!metadata) {
+          // No metadata means the server is orphaned
+          logger.log("Removing orphaned server without metadata");
+          try {
+            if (server?.server) {
+              server.server.close();
+            }
+          } catch (error) {
+            logger.error("Error closing orphaned server:", error);
+          }
+          return false;
+        }
+        
+        const age = now - metadata.createdAt.getTime();
+        if (age > staleThreshold) {
+          logger.log(`Removing stale server (session ${metadata.sessionId}, age: ${age}ms)`);
+          try {
+            if (server?.server) {
+              server.server.close();
+            }
+            if (metadata.transport?.close) {
+              metadata.transport.close();
+            }
+          } catch (error) {
+            logger.error("Error closing stale server:", error);
+          }
+          serverMetadata.delete(server);
+          return false;
+        }
+        
+        return true;
+      });
+    }, 30 * 1000); // Run every 30 seconds
+  }
 
   return async function mcpApiHandler(req: Request, res: ServerResponse) {
     const url = new URL(req.url || "", "https://example.com");
@@ -417,146 +470,222 @@ export function initializeMcpApiHandler(
       });
 
       const server = new McpServer(serverInfo, serverOptions);
-      await initializeServer(server);
-
-      servers.push(server);
-
-      server.server.onclose = () => {
-        logger.log("SSE connection closed");
-        eventRes.endSession("SSE");
-        servers = servers.filter((s) => s !== server);
-      };
-
-      let logs: {
-        type: LogLevel;
-        messages: string[];
-      }[] = [];
-
-      // eslint-disable-next-line no-inner-declarations
-      function logInContext(severity: LogLevel, ...messages: string[]) {
-        logs.push({
-          type: severity,
-          messages,
-        });
-      }
-
-      // Handles messages originally received via /message
-      const handleMessage = async (message: string) => {
-        logger.log("Received message from Redis", message);
-        logInContext("log", "Received message from Redis", message);
-        const request = JSON.parse(message) as SerializedRequest;
-
-        // Make in IncomingMessage object because that is what the SDK expects.
-        const req = createFakeIncomingMessage({
-          method: request.method,
-          url: request.url,
-          headers: request.headers,
-          body: request.body,
-        });
-
-        const syntheticRes = new EventEmittingResponse(
-          req,
-          config.onEvent,
-          sessionId
-        );
-        let status = 100;
-        let body = "";
-        syntheticRes.writeHead = (statusCode: number) => {
-          status = statusCode;
-          return syntheticRes;
-        };
-        syntheticRes.end = (b: unknown) => {
-          body = b as string;
-          return syntheticRes;
-        };
-
+      
+      // Track cleanup state to prevent double cleanup
+      let isCleanedUp = false;
+      let interval: NodeJS.Timeout | null = null;
+      let timeout: NodeJS.Timeout | null = null;
+      let abortHandler: (() => void) | null = null;
+      let handleMessage: ((message: string) => Promise<void>) | null = null;
+      let logs: { type: LogLevel; messages: string[]; }[] = [];
+      
+      // Comprehensive cleanup function
+      const cleanup = async (reason: string) => {
+        if (isCleanedUp) return;
+        isCleanedUp = true;
+        
+        logger.log(`Cleaning up SSE connection: ${reason}`);
+        
+        // Clear timers
+        if (timeout) {
+          clearTimeout(timeout);
+          timeout = null;
+        }
+        if (interval) {
+          clearInterval(interval);
+          interval = null;
+        }
+        
+        // Remove abort event listener
+        if (abortHandler) {
+          req.signal.removeEventListener("abort", abortHandler);
+          abortHandler = null;
+        }
+        
+        // Unsubscribe from Redis
+        if (handleMessage) {
+          try {
+            await redis.unsubscribe(`requests:${sessionId}`, handleMessage);
+            logger.log(`Unsubscribed from requests:${sessionId}`);
+          } catch (error) {
+            logger.error("Error unsubscribing from Redis:", error);
+          }
+        }
+        
+        // Close server and transport
         try {
-          await transport.handlePostMessage(req, syntheticRes);
-
-          // If it was a function call, complete it
-          if (
-            typeof request.body === "object" &&
-            request.body &&
-            "method" in request.body
-          ) {
-            try {
-              const result = JSON.parse(body);
-              eventRes.requestCompleted(request.body.method as string, result);
-            } catch {
-              eventRes.requestCompleted(request.body.method as string, body);
-            }
+          if (server?.server) {
+            await server.server.close();
+          }
+          if (transport?.close) {
+            await transport.close();
           }
         } catch (error) {
-          eventRes.error(
-            error instanceof Error ? error : String(error),
-            "Error handling SSE message",
-            "session"
-          );
-          throw error;
+          logger.error("Error closing server/transport:", error);
         }
-
-        await redisPublisher.publish(
-          `responses:${sessionId}:${request.requestId}`,
-          JSON.stringify({
-            status,
-            body,
-          })
-        );
-
-        if (status >= 200 && status < 300) {
-          logInContext(
-            "log",
-            `Request ${sessionId}:${request.requestId} succeeded: ${body}`
-          );
-        } else {
-          logInContext(
-            "error",
-            `Message for ${sessionId}:${request.requestId} failed with status ${status}: ${body}`
-          );
-          eventRes.error(
-            `Request failed with status ${status}`,
-            body,
-            "session"
-          );
+        
+        // Remove server from array and WeakMap
+        servers = servers.filter((s) => s !== server);
+        serverMetadata.delete(server);
+        
+        // End session event
+        eventRes.endSession("SSE");
+        
+        // Clear logs array to free memory
+        logs = [];
+        
+        // End response if not already ended
+        if (!res.headersSent) {
+          res.statusCode = 200;
+          res.end();
         }
       };
+      
+      try {
+        await initializeServer(server);
+        servers.push(server);
+        
+        // Store metadata in WeakMap
+        serverMetadata.set(server, {
+          sessionId,
+          createdAt: new Date(),
+          transport
+        });
 
-      const interval = setInterval(() => {
-        for (const log of logs) {
-          logger[log.type](...log.messages);
+        server.server.onclose = () => {
+          cleanup("server closed");
+        };
+
+        // eslint-disable-next-line no-inner-declarations
+        function logInContext(severity: LogLevel, ...messages: string[]) {
+          logs.push({
+            type: severity,
+            messages,
+          });
         }
-        logs = [];
-      }, 100);
 
-      await redis.subscribe(`requests:${sessionId}`, handleMessage);
-      logger.log(`Subscribed to requests:${sessionId}`);
+        // Handles messages originally received via /message
+        handleMessage = async (message: string) => {
+          logger.log("Received message from Redis", message);
+          logInContext("log", "Received message from Redis", message);
+          const request = JSON.parse(message) as SerializedRequest;
 
-      let timeout: NodeJS.Timeout;
-      let resolveTimeout: (value: unknown) => void;
-      const waitPromise = new Promise((resolve) => {
-        resolveTimeout = resolve;
-        timeout = setTimeout(() => {
-          resolve("max duration reached");
-        }, (maxDuration ?? 60) * 1000);
-      });
+          // Make in IncomingMessage object because that is what the SDK expects.
+          const req = createFakeIncomingMessage({
+            method: request.method,
+            url: request.url,
+            headers: request.headers,
+            body: request.body,
+          });
 
-      // eslint-disable-next-line no-inner-declarations
-      async function cleanup() {
-        clearTimeout(timeout);
-        clearInterval(interval);
-        await redis.unsubscribe(`requests:${sessionId}`, handleMessage);
-        logger.log("Done");
-        res.statusCode = 200;
-        res.end();
+          const syntheticRes = new EventEmittingResponse(
+            req,
+            config.onEvent,
+            sessionId
+          );
+          let status = 100;
+          let body = "";
+          syntheticRes.writeHead = (statusCode: number) => {
+            status = statusCode;
+            return syntheticRes;
+          };
+          syntheticRes.end = (b: unknown) => {
+            body = b as string;
+            return syntheticRes;
+          };
+
+          try {
+            await transport.handlePostMessage(req, syntheticRes);
+
+            // If it was a function call, complete it
+            if (
+              typeof request.body === "object" &&
+              request.body &&
+              "method" in request.body
+            ) {
+              try {
+                const result = JSON.parse(body);
+                eventRes.requestCompleted(request.body.method as string, result);
+              } catch {
+                eventRes.requestCompleted(request.body.method as string, body);
+              }
+            }
+          } catch (error) {
+            eventRes.error(
+              error instanceof Error ? error : String(error),
+              "Error handling SSE message",
+              "session"
+            );
+            throw error;
+          }
+
+          await redisPublisher.publish(
+            `responses:${sessionId}:${request.requestId}`,
+            JSON.stringify({
+              status,
+              body,
+            })
+          );
+
+          if (status >= 200 && status < 300) {
+            logInContext(
+              "log",
+              `Request ${sessionId}:${request.requestId} succeeded: ${body}`
+            );
+          } else {
+            logInContext(
+              "error",
+              `Message for ${sessionId}:${request.requestId} failed with status ${status}: ${body}`
+            );
+            eventRes.error(
+              `Request failed with status ${status}`,
+              body,
+              "session"
+            );
+          }
+        };
+
+        interval = setInterval(() => {
+          for (const log of logs) {
+            logger[log.type](...log.messages);
+          }
+          logs = [];
+        }, 100);
+
+        await redis.subscribe(`requests:${sessionId}`, handleMessage);
+        logger.log(`Subscribed to requests:${sessionId}`);
+
+        let resolveTimeout: (value: unknown) => void;
+        const waitPromise = new Promise((resolve) => {
+          resolveTimeout = resolve;
+          timeout = setTimeout(() => {
+            resolve("max duration reached");
+          }, (maxDuration ?? 60) * 1000);
+        });
+
+        abortHandler = () => resolveTimeout("client hang up");
+        req.signal.addEventListener("abort", abortHandler);
+        
+        // Handle response close event
+        res.on("close", () => {
+          cleanup("response closed");
+        });
+        
+        // Handle response error event
+        res.on("error", (error) => {
+          logger.error("Response error:", error);
+          cleanup("response error");
+        });
+
+        await server.connect(transport);
+        const closeReason = await waitPromise;
+        logger.log(closeReason);
+        await cleanup(String(closeReason));
+      } catch (error) {
+        logger.error("Error in SSE handler:", error);
+        await cleanup("error during setup");
+        throw error;
       }
-      req.signal.addEventListener("abort", () =>
-        resolveTimeout("client hang up")
-      );
-
-      await server.connect(transport);
-      const closeReason = await waitPromise;
-      logger.log(closeReason);
-      await cleanup();
     } else if (url.pathname === sseMessageEndpoint) {
       if (disableSse) {
         res.statusCode = 404;
@@ -594,54 +723,95 @@ export function initializeMcpApiHandler(
       };
 
       // Declare timeout and response handling state before subscription
-      let timeout: NodeJS.Timeout;
+      let timeout: NodeJS.Timeout | null = null;
       let hasResponded = false;
+      let isCleanedUp = false;
+      
+      // Cleanup function to ensure all resources are freed
+      const cleanup = async () => {
+        if (isCleanedUp) return;
+        isCleanedUp = true;
+        
+        if (timeout) {
+          clearTimeout(timeout);
+          timeout = null;
+        }
+        
+        try {
+          await redis.unsubscribe(`responses:${sessionId}:${requestId}`);
+        } catch (error) {
+          logger.error("Error unsubscribing from Redis response channel:", error);
+        }
+      };
+      
       // Safe response handler to prevent double res.end()
-      const sendResponse = (status: number, body: string) => {
+      const sendResponse = async (status: number, body: string) => {
         if (!hasResponded) {
           hasResponded = true;
-          clearTimeout(timeout);
           res.statusCode = status;
           res.end(body);
+          await cleanup();
+        }
+      };
+      
+      // Response handler
+      const handleResponse = async (message: string) => {
+        try {
+          const response = JSON.parse(message) as {
+            status: number;
+            body: string;
+          };
+          await sendResponse(response.status, response.body);
+        } catch (error) {
+          logger.error("Failed to parse response message:", error);
+          await sendResponse(500, "Internal server error");
         }
       };
 
-      // Handles responses from the /sse endpoint.
-      await redis.subscribe(
-        `responses:${sessionId}:${requestId}`,
-        (message) => {
-          try {
-            const response = JSON.parse(message) as {
-              status: number;
-              body: string;
-            };
-            sendResponse(response.status, response.body);
-          } catch (error) {
-            logger.error("Failed to parse response message:", error);
-            sendResponse(500, "Internal server error");
+      try {
+        // Handles responses from the /sse endpoint.
+        await redis.subscribe(
+          `responses:${sessionId}:${requestId}`,
+          handleResponse
+        );
+
+        // Queue the request in Redis so that a subscriber can pick it up.
+        // One queue per session.
+        await redisPublisher.publish(
+          `requests:${sessionId}`,
+          JSON.stringify(serializedRequest)
+        );
+        logger.log(`Published requests:${sessionId}`, serializedRequest);
+
+        // Set timeout after subscription is established
+        timeout = setTimeout(async () => {
+          await sendResponse(408, "Request timed out");
+        }, 10 * 1000);
+
+        // Handle response close event
+        res.on("close", async () => {
+          if (!hasResponded) {
+            hasResponded = true;
+            await cleanup();
           }
+        });
+        
+        // Handle response error event
+        res.on("error", async (error) => {
+          logger.error("Response error in message handler:", error);
+          if (!hasResponded) {
+            hasResponded = true;
+            await cleanup();
+          }
+        });
+      } catch (error) {
+        logger.error("Error in message handler:", error);
+        await cleanup();
+        if (!hasResponded) {
+          res.statusCode = 500;
+          res.end("Internal server error");
         }
-      );
-
-      // Queue the request in Redis so that a subscriber can pick it up.
-      // One queue per session.
-      await redisPublisher.publish(
-        `requests:${sessionId}`,
-        JSON.stringify(serializedRequest)
-      );
-      logger.log(`Published requests:${sessionId}`, serializedRequest);
-
-      // Set timeout after subscription is established
-      timeout = setTimeout(async () => {
-        await redis.unsubscribe(`responses:${sessionId}:${requestId}`);
-        sendResponse(408, "Request timed out");
-      }, 10 * 1000);
-
-      res.on("close", async () => {
-        hasResponded = true;
-        clearTimeout(timeout);
-        await redis.unsubscribe(`responses:${sessionId}:${requestId}`);
-      });
+      }
     } else {
       res.statusCode = 404;
       res.end("Not found");
