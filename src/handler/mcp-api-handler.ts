@@ -244,6 +244,8 @@ export function initializeMcpApiHandler(
       name: "mcp-typescript server on vercel",
       version: "0.1.0",
     },
+    sessionId: providedSessionId,
+    onSessionInitialized,
     ...mcpServerOptions
   } = serverOptions;
 
@@ -262,7 +264,10 @@ export function initializeMcpApiHandler(
 
   let statelessServer: McpServer;
   const statelessTransport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: undefined,
+    sessionIdGenerator: providedSessionId
+      ? () => providedSessionId
+      : () => crypto.randomUUID(),
+    onsessioninitialized: onSessionInitialized,
   });
 
   return async function mcpApiHandler(req: Request, res: ServerResponse) {
@@ -402,6 +407,11 @@ export function initializeMcpApiHandler(
       assert(sseMessageEndpoint, "sseMessageEndpoint is required");
       const transport = new SSEServerTransport(sseMessageEndpoint, res);
       const sessionId = transport.sessionId;
+
+      // Call onSessionInitialized callback if provided
+      if (onSessionInitialized) {
+        onSessionInitialized(sessionId);
+      }
 
       const eventRes = new EventEmittingResponse(
         createFakeIncomingMessage(),

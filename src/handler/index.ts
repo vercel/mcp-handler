@@ -16,6 +16,8 @@ export type ServerOptions = McpServerOptions & {
     name: string;
     version: string;
   };
+  sessionId?: string;
+  onSessionInitialized?: (sessionId: string) => void;
 };
 
 export default function createMcpRouteHandler(
