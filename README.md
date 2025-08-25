@@ -63,7 +63,6 @@ const handler = async (
   { params }: { params: Promise<{ p: string; t: string }> }
 ) => {
   const { p, t } = await params;
-  console.log(p, t);
 
   return createMcpHandler(
     (server) => {
