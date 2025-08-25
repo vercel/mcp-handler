@@ -1,5 +1,11 @@
 # mcp-handler
 
+## 1.0.2
+
+### Patch Changes
+
+- 956dc11: Fix memory leak when using SSE connections
+
 ## 1.0.1
 
 ### Patch Changes
