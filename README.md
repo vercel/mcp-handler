@@ -52,7 +52,7 @@ export { handler as GET, handler as POST };
 
 ## Advanced Routing
 ```typescript
-// app/dynamic/[p]/[t]/route.ts
+// app/dynamic/[p]/[transport]/route.ts
 
 import { createMcpHandler } from "@vercel/mcp-adapter";
 import type { NextRequest } from "next/server";
@@ -60,9 +60,9 @@ import { z } from "zod";
 
 const handler = async (
   req: NextRequest,
-  { params }: { params: Promise<{ p: string; t: string }> }
+  { params }: { params: Promise<{ p: string; transport: string }> }
 ) => {
-  const { p, t } = await params;
+  const { p, transport } = await params;
 
   return createMcpHandler(
     (server) => {
