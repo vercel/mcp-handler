@@ -1,4 +1,4 @@
-import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types";
+import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import {
   createMcpHandler,
   experimental_withMcpAuth as withMcpAuth,
@@ -8,11 +8,14 @@ import { z } from "zod";
 // Define the handler with proper parameter validation
 const handler = createMcpHandler(
   (server) => {
-    server.tool(
+    server.registerTool(
       "echo",
-      "Echo a message back with authentication info",
       {
-        message: z.string().describe("The message to echo back"),
+        title: "Echo a message back with authentication info",
+        description: "Echo a message back with authentication info",
+        inputSchema: {
+          message: z.string().describe("The message to echo back"),
+        },
       },
       async ({ message }, extra) => {
         return {

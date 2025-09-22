@@ -1,8 +1,11 @@
-import createMcpRouteHandler from '../dist/next/index';
+import { createMcpHandler } from '../dist/index';
 
-const handler = createMcpRouteHandler(
+const handler = createMcpHandler(
   server => {
-    server.tool('echo', 'Echo a message', {}, async () => {
+    server.registerTool('echo', {
+      title: 'Echo a message',
+      description: 'Echo a message',
+    }, async () => {
       return {
         content: [
           {
@@ -17,7 +20,7 @@ const handler = createMcpRouteHandler(
   {
     capabilities: {},
   },
-  // Optional: Comes from the createMcpRouteHandler config
+  // Optional: Comes from the createMcpHandler config
   {
     streamableHttpEndpoint: '/mcp',
     sseEndpoint: '/sse',
