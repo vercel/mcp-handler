@@ -1,7 +1,7 @@
 import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types";
 import {
   createMcpHandler,
-  experimental_withMcpAuth as withMcpAuth,
+  withMcpAuth,
 } from "mcp-handler";
 import { z } from "zod";
 
