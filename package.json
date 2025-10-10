@@ -32,12 +32,11 @@
     "dist"
   ],
   "repository": {
-    "directory": "packages/mcp-adapter",
     "type": "git",
-    "url": "git+https://github.com/vercel/mcp-adapter.git"
+    "url": "git+https://github.com/vercel/mcp-handler.git"
   },
   "bugs": {
-    "url": "https://github.com/vercel/mcp-adapter/issues"
+    "url": "https://github.com/vercel/mcp-handler/issues"
   },
   "scripts": {
     "build": "tsup",
