@@ -324,7 +324,9 @@ const handler = protectedResourceHandler({
   authServerUrls: ["https://auth-server.com"],
 });
 
-export { handler as GET, metadataCorsOptionsRequestHandler as OPTIONS };
+const corsHandler = metadataCorsOptionsRequestHandler()
+
+export { handler as GET, corsHandler as OPTIONS };
 ```
 
 This endpoint provides:
