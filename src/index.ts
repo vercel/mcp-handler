@@ -13,3 +13,16 @@ export {
   generateProtectedResourceMetadata,
   metadataCorsOptionsRequestHandler,
 } from "./auth/auth-metadata";
+
+// Experimental widget utilities for OpenAI Apps SDK
+export {
+  experimental_createWidget,
+  experimental_createWidgetResponse,
+} from "./widgets";
+
+export type {
+  Widget,
+  WidgetConfig,
+  WidgetMetadata,
+  WidgetResponse,
+} from "./widgets";
