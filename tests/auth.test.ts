@@ -78,7 +78,6 @@ describe("auth", () => {
       expect(wwwAuth).toContain(`resource_metadata="${resourceMetadataUrl}"`);
       expect(wwwAuth).toContain("error_description=");
 
-      // Verify JSON-RPC response format
       const body = JSON.parse(response.body);
       expect(body.jsonrpc).toBe("2.0");
       expect(body.error.code).toBe(-32003);
@@ -111,7 +110,6 @@ describe("auth", () => {
       expect(scopes).toContain("write:data");
       expect(scopes).toContain("delete:admin");
 
-      // Should not have duplicates
       expect(scopes.length).toBe(new Set(scopes).size);
     });
 

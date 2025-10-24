@@ -385,7 +385,6 @@ export function initializeMcpApiHandler(
           auth: req.auth, // Use the auth info that should already be set by withMcpAuth
         });
 
-        // Validate tool scopes if this is a tool call
         if (
           bodyContent &&
           typeof bodyContent === "object" &&
@@ -404,11 +403,9 @@ export function initializeMcpApiHandler(
               validation.missingScopes &&
               validation.availableScopes
             ) {
-              // Create proper insufficient scope response following MCP spec
               const origin = new URL(req.url).origin;
               const resourceMetadataUrl = `${origin}/.well-known/oauth-protected-resource`;
 
-              // Include existing relevant scopes and newly required scopes
               const allRelevantScopes = [
                 ...new Set([
                   ...validation.availableScopes,
@@ -645,7 +642,6 @@ export function initializeMcpApiHandler(
             body: request.body,
           });
 
-          // Validate tool scopes if this is a tool call
           if (
             request.body &&
             typeof request.body === "object" &&
@@ -664,11 +660,9 @@ export function initializeMcpApiHandler(
                 validation.missingScopes &&
                 validation.availableScopes
               ) {
-                // Create proper insufficient scope response following MCP spec
                 const origin = new URL(request.url).origin;
                 const resourceMetadataUrl = `${origin}/.well-known/oauth-protected-resource`;
 
-                // Include existing relevant scopes and newly required scopes
                 const allRelevantScopes = [
                   ...new Set([
                     ...validation.availableScopes,

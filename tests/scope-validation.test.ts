@@ -17,7 +17,6 @@ describe("scope validation", () => {
   };
 
   beforeEach(() => {
-    // Clear any existing auth context
     vi.clearAllMocks();
   });
 

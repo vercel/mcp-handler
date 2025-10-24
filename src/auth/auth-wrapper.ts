@@ -65,7 +65,6 @@ export function withMcpAuth(
         return handler(req);
       }
 
-      // Check if token has the required scopes (if any)
       if (requiredScopes?.length) {
         const hasAllScopes = requiredScopes.every((scope) =>
           authInfo!.scopes.includes(scope)
@@ -75,13 +74,10 @@ export function withMcpAuth(
           throw new InsufficientScopeError("Insufficient scope");
         }
       }
-
-      // Check if the token is expired
       if (authInfo.expiresAt && authInfo.expiresAt < Date.now() / 1000) {
         throw new InvalidTokenError("Token has expired");
       }
 
-      // Set auth info on the request object after successful verification
       req.auth = authInfo;
 
       return withAuthContext(authInfo, toolScopes, () => handler(req));

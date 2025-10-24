@@ -2,8 +2,7 @@ import { getAuthContext, getToolScopes } from "./auth-context";
 import { InsufficientScopeError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
 
 /**
- * Validates that the current auth context has the required scopes for a tool call
- * Returns scope information for proper error response formatting
+ * Validates tool scope requirements
  */
 export function validateToolScope(toolName: string): {
   valid: boolean;
@@ -14,20 +13,15 @@ export function validateToolScope(toolName: string): {
   const authInfo = getAuthContext();
   const toolScopes = getToolScopes();
 
-  // If no auth context, skip validation
   if (!authInfo || !toolScopes) {
     return { valid: true };
   }
 
-  // Get the required scopes for this tool
   const requiredScopes = toolScopes[toolName];
 
-  // If no scopes are defined for this tool, skip validation
   if (!requiredScopes || requiredScopes.length === 0) {
     return { valid: true };
   }
-
-  // Check if the user has all required scopes
   const hasAllScopes = requiredScopes.every((scope) =>
     authInfo.scopes.includes(scope)
   );
@@ -49,8 +43,7 @@ export function validateToolScope(toolName: string): {
 }
 
 /**
- * Creates a WWW-Authenticate header for insufficient scope errors
- * Following MCP spec for Scope Challenge Handling
+ * Creates insufficient scope error response
  */
 export function createInsufficientScopeResponse(
   missingScopes: string[],
@@ -62,8 +55,6 @@ export function createInsufficientScopeResponse(
   headers: Record<string, string>;
   body: string;
 } {
-  // Determine the scope parameter according to MCP spec
-  // Include existing relevant scopes and newly required scopes
   const allRelevantScopes = [
     ...new Set([...availableScopes, ...missingScopes]),
   ];
@@ -98,15 +89,13 @@ export function createInsufficientScopeResponse(
 }
 
 /**
- * Middleware to validate tool scopes for JSON-RPC requests
+ * Middleware for tool scope validation
  */
 export function createScopeValidationMiddleware() {
   return (req: any, res: any, next: () => void) => {
-    // Only validate if this is a JSON-RPC request with a method
     if (req.body && typeof req.body === "object" && "method" in req.body) {
       const method = req.body.method;
 
-      // Check if this is a tool call
       if (method === "tools/call" && req.body.params && req.body.params.name) {
         const toolName = req.body.params.name;
         const validation = validateToolScope(toolName);
@@ -116,7 +105,6 @@ export function createScopeValidationMiddleware() {
           validation.missingScopes &&
           validation.availableScopes
         ) {
-          // Create proper insufficient scope response
           const origin = new URL(req.url).origin;
           const resourceMetadataUrl = `${origin}/.well-known/oauth-protected-resource`;
 

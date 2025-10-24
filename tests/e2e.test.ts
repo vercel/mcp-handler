@@ -216,7 +216,6 @@ describe("e2e", () => {
     let scopeEndpoint: string;
 
     beforeEach(async () => {
-      // Create a handler with scope validation
       const _scopeHandler = createMcpHandler(
         (server) => {
           server.tool(
@@ -290,7 +289,6 @@ describe("e2e", () => {
         if (header?.startsWith("Bearer ")) {
           const token = header.slice(7).trim();
 
-          // Return different scopes based on token
           if (token === "admin_token") {
             return Promise.resolve({
               token,
@@ -357,7 +355,6 @@ describe("e2e", () => {
       );
       await client.connect(transport);
 
-      // Should be able to call roll_dice and user_profile
       const rollResult = await client.callTool(
         {
           name: "roll_dice",
@@ -405,7 +402,6 @@ describe("e2e", () => {
       );
       await client.connect(transport);
 
-      // Should get 403 for admin_delete
       try {
         await client.callTool(
           {
@@ -448,7 +444,6 @@ describe("e2e", () => {
       );
       await client.connect(transport);
 
-      // Should be able to call all tools including admin_delete
       const deleteResult = await client.callTool(
         {
           name: "admin_delete",
