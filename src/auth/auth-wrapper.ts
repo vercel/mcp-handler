@@ -1,10 +1,10 @@
-import {AuthInfo} from "@modelcontextprotocol/sdk/server/auth/types.js";
+import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import {
   InvalidTokenError,
   InsufficientScopeError,
   ServerError,
 } from "@modelcontextprotocol/sdk/server/auth/errors.js";
-import {withAuthContext} from "./auth-context";
+import { withAuthContext } from "./auth-context";
 
 declare global {
   interface Request {
@@ -22,10 +22,12 @@ export function withMcpAuth(
     required = false,
     resourceMetadataPath = "/.well-known/oauth-protected-resource",
     requiredScopes,
+    toolScopes,
   }: {
     required?: boolean;
     resourceMetadataPath?: string;
     requiredScopes?: string[];
+    toolScopes?: Record<string, string[]>;
   } = {}
 ) {
   return async (req: Request) => {
@@ -82,7 +84,7 @@ export function withMcpAuth(
       // Set auth info on the request object after successful verification
       req.auth = authInfo;
 
-      return withAuthContext(authInfo, () => handler(req));
+      return withAuthContext(authInfo, toolScopes, () => handler(req));
     } catch (error) {
       if (error instanceof InvalidTokenError) {
         return new Response(JSON.stringify(error.toResponseObject()), {
