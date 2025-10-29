@@ -125,6 +125,11 @@ export type Config = {
    * @default false
    */
   disableSse?: boolean;
+
+  /**
+   * sessionIdGenerator for the streamable HTTP transport
+   */
+  sessionIdGenerator?: undefined;
 };
 
 /**
@@ -247,6 +252,7 @@ export function initializeMcpApiHandler(
     maxDuration,
     verboseLogs,
     disableSse,
+    sessionIdGenerator,
   } = config;
 
   const {
@@ -272,7 +278,7 @@ export function initializeMcpApiHandler(
 
   let statelessServer: McpServer;
   const statelessTransport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: undefined,
+    sessionIdGenerator: sessionIdGenerator,
   });
   
   // Start periodic cleanup if not already running
