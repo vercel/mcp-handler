@@ -1,6 +1,6 @@
 {
   "name": "mcp-handler",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Vercel MCP Adapter for Next.js and other frameworks",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -32,12 +32,11 @@
     "dist"
   ],
   "repository": {
-    "directory": "packages/mcp-adapter",
     "type": "git",
-    "url": "git+https://github.com/vercel/mcp-adapter.git"
+    "url": "git+https://github.com/vercel/mcp-handler.git"
   },
   "bugs": {
-    "url": "https://github.com/vercel/mcp-adapter/issues"
+    "url": "https://github.com/vercel/mcp-handler/issues"
   },
   "scripts": {
     "build": "tsup",

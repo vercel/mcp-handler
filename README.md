@@ -372,7 +372,7 @@ const handler = protectedResourceHandler({
   authServerUrls: ["https://auth-server.com"],
 });
 
-const corsHandler = metadataCorsOptionsRequestHandler();
+const corsHandler = metadataCorsOptionsRequestHandler()
 
 export { handler as GET, corsHandler as OPTIONS };
 ```

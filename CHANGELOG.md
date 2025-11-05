@@ -1,5 +1,11 @@
 # mcp-handler
 
+## 1.0.3
+
+### Patch Changes
+
+- 639e634: update oauth usage
+
 ## 1.0.2
 
 ### Patch Changes
