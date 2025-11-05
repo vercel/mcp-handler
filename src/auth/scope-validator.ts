@@ -1,4 +1,4 @@
-import { getAuthContext, getToolScopes } from "./auth-context";
+import { getAuthContext, getRequiredToolScopes } from "./auth-context";
 import { InsufficientScopeError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
 
 /**
@@ -11,13 +11,13 @@ export function validateToolScope(toolName: string): {
   missingScopes?: string[];
 } {
   const authInfo = getAuthContext();
-  const toolScopes = getToolScopes();
+  const requiredToolScopes = getRequiredToolScopes();
 
-  if (!authInfo || !toolScopes) {
+  if (!authInfo || !requiredToolScopes) {
     return { valid: true };
   }
 
-  const requiredScopes = toolScopes[toolName];
+  const requiredScopes = requiredToolScopes[toolName];
 
   if (!requiredScopes || requiredScopes.length === 0) {
     return { valid: true };

@@ -9,7 +9,7 @@ describe("scope validation", () => {
     clientId: "test-client",
   };
 
-  const mockToolScopes = {
+  const mockRequiredToolScopes = {
     roll_dice: ["roll:dice"],
     admin_delete: ["delete:admin"],
     user_profile: ["read:profile"],
@@ -22,33 +22,49 @@ describe("scope validation", () => {
 
   describe("validateToolScope", () => {
     it("should return valid for tools with sufficient scopes", () => {
-      const result = withAuthContext(mockAuthInfo, mockToolScopes, () => {
-        return validateToolScope("roll_dice");
-      });
+      const result = withAuthContext(
+        mockAuthInfo,
+        mockRequiredToolScopes,
+        () => {
+          return validateToolScope("roll_dice");
+        }
+      );
 
       expect(result.valid).toBe(true);
     });
 
     it("should return valid for tools with no scope requirements", () => {
-      const result = withAuthContext(mockAuthInfo, mockToolScopes, () => {
-        return validateToolScope("no_scopes_tool");
-      });
+      const result = withAuthContext(
+        mockAuthInfo,
+        mockRequiredToolScopes,
+        () => {
+          return validateToolScope("no_scopes_tool");
+        }
+      );
 
       expect(result.valid).toBe(true);
     });
 
     it("should return valid for unknown tools", () => {
-      const result = withAuthContext(mockAuthInfo, mockToolScopes, () => {
-        return validateToolScope("unknown_tool");
-      });
+      const result = withAuthContext(
+        mockAuthInfo,
+        mockRequiredToolScopes,
+        () => {
+          return validateToolScope("unknown_tool");
+        }
+      );
 
       expect(result.valid).toBe(true);
     });
 
     it("should return invalid for tools with insufficient scopes", () => {
-      const result = withAuthContext(mockAuthInfo, mockToolScopes, () => {
-        return validateToolScope("admin_delete");
-      });
+      const result = withAuthContext(
+        mockAuthInfo,
+        mockRequiredToolScopes,
+        () => {
+          return validateToolScope("admin_delete");
+        }
+      );
 
       expect(result.valid).toBe(false);
       expect(result.missingScopes).toEqual(["delete:admin"]);
@@ -76,14 +92,14 @@ describe("scope validation", () => {
         scopes: ["roll:dice"],
       };
 
-      const toolScopesWithMultiple = {
-        ...mockToolScopes,
+      const requiredToolScopesWithMultiple = {
+        ...mockRequiredToolScopes,
         multi_scope_tool: ["delete:admin", "write:data"],
       };
 
       const result = withAuthContext(
         authInfoWithMultipleScopes,
-        toolScopesWithMultiple,
+        requiredToolScopesWithMultiple,
         () => {
           return validateToolScope("multi_scope_tool");
         }
@@ -101,14 +117,14 @@ describe("scope validation", () => {
         scopes: ["roll:dice", "delete:admin"],
       };
 
-      const toolScopesWithMultiple = {
-        ...mockToolScopes,
+      const requiredToolScopesWithMultiple = {
+        ...mockRequiredToolScopes,
         multi_scope_tool: ["delete:admin", "write:data"],
       };
 
       const result = withAuthContext(
         authInfoWithPartialScopes,
-        toolScopesWithMultiple,
+        requiredToolScopesWithMultiple,
         () => {
           return validateToolScope("multi_scope_tool");
         }
