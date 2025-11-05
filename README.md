@@ -236,7 +236,7 @@ interface Config {
 
 ## Authorization
 
-The MCP adapter supports the [MCP Authorization Specification](https://modelcontextprotocol.io/specification/draft/basic/authorization) per the through the `withMcpAuth` wrapper. This allows you to protect your MCP endpoints and access authentication information in your tools.
+The MCP adapter supports the [MCP Authorization Specification](https://modelcontextprotocol.io/specification/draft/basic/authorization) through the `withMcpAuth` wrapper. This allows you to protect your MCP endpoints and access authentication information in your tools.
 
 ### Basic Usage
 
@@ -269,6 +269,22 @@ const handler = createMcpHandler(
         };
       }
     );
+
+    server.tool(
+      "admin_action",
+      "Admin-only action",
+      { action: z.string() },
+      async ({ action }, extra) => {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Admin action: ${action}`,
+            },
+          ],
+        };
+      }
+    );
   },
   {
     // Optional server options
@@ -291,7 +307,7 @@ const verifyToken = async (
 
   return {
     token: bearerToken,
-    scopes: ["read:stuff"], // Add relevant scopes
+    scopes: ["read:echo", "admin:write"], // Add relevant scopes based on token
     clientId: "user123", // Add user/client identifier
     extra: {
       // Optional extra information
@@ -300,15 +316,44 @@ const verifyToken = async (
   };
 };
 
-// Make authorization required
+// Apply authentication with tool-specific scopes
 const authHandler = withMcpAuth(handler, verifyToken, {
   required: true, // Make auth required for all requests
-  requiredScopes: ["read:stuff"], // Optional: Require specific scopes
+  requiredToolScopes: {
+    echo: ["read:echo"], // Only needs 'read:echo' scope
+    admin_action: ["admin:write"], // Requires 'admin:write' scope
+  },
   resourceMetadataPath: "/.well-known/oauth-protected-resource", // Optional: Custom metadata path
 });
 
 export { authHandler as GET, authHandler as POST };
 ```
+
+### Using Both requiredScopes and requiredToolScopes Together
+
+`requiredScopes` are validated first (403 if missing), then `requiredToolScopes` per tool call:
+
+```typescript
+const authHandler = withMcpAuth(handler, verifyToken, {
+  required: true,
+  requiredScopes: ["read:stuff"],
+  requiredToolScopes: {
+    echo: ["read:echo"],
+    admin_action: ["admin:write"],
+  },
+});
+```
+
+### Alternative: Global Scope Requirements Only
+
+```typescript
+const authHandler = withMcpAuth(handler, verifyToken, {
+  required: true,
+  requiredScopes: ["read:stuff"],
+});
+```
+
+**Note:** `requiredToolScopes` (with or without `requiredScopes`) is recommended for [progressive authorization and granular access control](https://modelcontextprotocol.io/specification/draft/basic/authorization#scope-challenge-handling).
 
 ### OAuth Protected Resource Metadata
 
@@ -327,8 +372,9 @@ const handler = protectedResourceHandler({
   authServerUrls: ["https://auth-server.com"],
 });
 
-export const GET = handler;
-export const OPTIONS = metadataCorsOptionsRequestHandler();
+const corsHandler = metadataCorsOptionsRequestHandler();
+
+export { handler as GET, corsHandler as OPTIONS };
 ```
 
 This endpoint provides:
@@ -342,9 +388,9 @@ which by default is `/.well-known/oauth-protected-resource` (the full URL will b
 ### Authorization Flow
 
 1. Client makes a request with a Bearer token in the Authorization header
-2. The `verifyToken` function validates the token and returns auth info
+2. The `verifyToken` function validates the token and returns auth info with associated scopes
 3. If authentication is required and fails, a 401 response is returned
-4. If specific scopes are required and missing, a 403 response is returned
+4. If tool-specific scopes (defined in `requiredToolScopes`) or global scopes (defined in `requiredScopes`) are required and missing, a 403 response is returned with the required scopes in the `WWW-Authenticate` header
 5. On successful authentication, the auth info is available in tool handlers via `extra.authInfo`
 
 ### Per-Tool Scope Validation
@@ -460,7 +506,7 @@ const verifyToken = async (
 // Apply authentication with tool-specific scopes
 const authHandler = withMcpAuth(handler, verifyToken, {
   required: true,
-  toolScopes: {
+  requiredToolScopes: {
     roll_dice: ["roll:dice"], // Only needs 'roll:dice' scope
     admin_delete: ["delete:admin"], // Requires admin permissions
     user_profile: ["read:profile"], // Only needs 'read:profile' scope

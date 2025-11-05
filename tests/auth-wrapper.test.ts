@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { withMcpAuth } from "../src/auth/auth-wrapper";
 import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types";
 
-describe("withMcpAuth with toolScopes", () => {
+describe("withMcpAuth with requiredToolScopes", () => {
   const mockHandler = vi.fn((req: Request) => {
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
@@ -19,7 +19,7 @@ describe("withMcpAuth with toolScopes", () => {
   it("should pass through requests when no auth is required", async () => {
     const authHandler = withMcpAuth(mockHandler, mockVerifyToken, {
       required: false,
-      toolScopes: {
+      requiredToolScopes: {
         test_tool: ["test:scope"],
       },
     });
@@ -46,7 +46,7 @@ describe("withMcpAuth with toolScopes", () => {
 
     const authHandler = withMcpAuth(mockHandler, mockVerifyToken, {
       required: true,
-      toolScopes: {
+      requiredToolScopes: {
         // No scopes defined for any tools
       },
     });
@@ -70,7 +70,7 @@ describe("withMcpAuth with toolScopes", () => {
 
     const authHandler = withMcpAuth(mockHandler, mockVerifyToken, {
       required: true,
-      toolScopes: {
+      requiredToolScopes: {
         test_tool: ["test:scope"],
       },
     });
@@ -93,7 +93,7 @@ describe("withMcpAuth with toolScopes", () => {
 
     const authHandler = withMcpAuth(mockHandler, mockVerifyToken, {
       required: true,
-      toolScopes: {
+      requiredToolScopes: {
         test_tool: ["test:scope"],
       },
     });
@@ -124,7 +124,7 @@ describe("withMcpAuth with toolScopes", () => {
 
     const authHandler = withMcpAuth(mockHandler, mockVerifyToken, {
       required: true,
-      toolScopes: {
+      requiredToolScopes: {
         test_tool: ["test:scope"],
       },
     });
@@ -153,7 +153,7 @@ describe("withMcpAuth with toolScopes", () => {
     const authHandler = withMcpAuth(mockHandler, mockVerifyToken, {
       required: true,
       requiredScopes: ["test:scope"],
-      toolScopes: {
+      requiredToolScopes: {
         test_tool: ["test:scope"],
       },
     });
@@ -182,7 +182,7 @@ describe("withMcpAuth with toolScopes", () => {
     const authHandler = withMcpAuth(mockHandler, mockVerifyToken, {
       required: true,
       requiredScopes: ["test:scope"],
-      toolScopes: {
+      requiredToolScopes: {
         test_tool: ["test:scope"],
       },
     });
@@ -212,7 +212,7 @@ describe("withMcpAuth with toolScopes", () => {
 
     const authHandler = withMcpAuth(mockHandler, mockVerifyToken, {
       required: true,
-      toolScopes: {
+      requiredToolScopes: {
         test_tool: ["test:scope"],
       },
     });
@@ -239,7 +239,7 @@ describe("withMcpAuth with toolScopes", () => {
 
     const authHandler = withMcpAuth(mockHandler, mockVerifyToken, {
       required: true,
-      toolScopes: {
+      requiredToolScopes: {
         test_tool: ["test:scope"],
       },
     });
@@ -272,7 +272,7 @@ describe("withMcpAuth with toolScopes", () => {
     const authHandler = withMcpAuth(mockHandler, mockVerifyToken, {
       required: true,
       requiredScopes: ["test:scope"],
-      toolScopes: {
+      requiredToolScopes: {
         test_tool: ["test:scope"],
       },
     });

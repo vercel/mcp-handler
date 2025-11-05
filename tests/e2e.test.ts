@@ -308,7 +308,7 @@ describe("e2e", () => {
 
       scopeHandler = withMcpAuth(_scopeHandler, scopeVerifyToken, {
         required: true,
-        toolScopes: {
+        requiredToolScopes: {
           roll_dice: ["roll:dice"],
           admin_delete: ["delete:admin"],
           user_profile: ["read:profile"],

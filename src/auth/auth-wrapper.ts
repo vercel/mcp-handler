@@ -22,12 +22,12 @@ export function withMcpAuth(
     required = false,
     resourceMetadataPath = "/.well-known/oauth-protected-resource",
     requiredScopes,
-    toolScopes,
+    requiredToolScopes,
   }: {
     required?: boolean;
     resourceMetadataPath?: string;
     requiredScopes?: string[];
-    toolScopes?: Record<string, string[]>;
+    requiredToolScopes?: Record<string, string[]>;
   } = {}
 ) {
   return async (req: Request) => {
@@ -80,7 +80,7 @@ export function withMcpAuth(
 
       req.auth = authInfo;
 
-      return withAuthContext(authInfo, toolScopes, () => handler(req));
+      return withAuthContext(authInfo, requiredToolScopes, () => handler(req));
     } catch (error) {
       if (error instanceof InvalidTokenError) {
         return new Response(JSON.stringify(error.toResponseObject()), {
