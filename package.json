@@ -62,7 +62,6 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.12",
-    "@modelcontextprotocol/sdk": "^1.17.2",
     "@types/node": "^22.15.8",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0",
