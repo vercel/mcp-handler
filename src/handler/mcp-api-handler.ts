@@ -181,14 +181,11 @@ let redisPublisher: ReturnType<typeof createClient>;
 let redis: ReturnType<typeof createClient>;
 
 // WeakMap to track server metadata without preventing GC
-const serverMetadata = new WeakMap<
-  McpServer,
-  {
-    sessionId: string;
-    createdAt: Date;
-    transport: SSEServerTransport;
-  }
->();
+const serverMetadata = new WeakMap<McpServer, {
+  sessionId: string;
+  createdAt: Date;
+  transport: SSEServerTransport;
+}>();
 
 // Periodic cleanup interval
 let cleanupInterval: NodeJS.Timeout | null = null;
@@ -528,18 +525,22 @@ export function initializeMcpApiHandler(
       });
 
       const server = new McpServer(serverInfo, serverOptions);
+
       // Track cleanup state to prevent double cleanup
       let isCleanedUp = false;
       let interval: NodeJS.Timeout | null = null;
       let timeout: NodeJS.Timeout | null = null;
       let abortHandler: (() => void) | null = null;
       let handleMessage: ((message: string) => Promise<void>) | null = null;
-      let logs: { type: LogLevel; messages: string[] }[] = [];
+      let logs: { type: LogLevel; messages: string[]; }[] = [];
+
       // Comprehensive cleanup function
       const cleanup = async (reason: string) => {
         if (isCleanedUp) return;
         isCleanedUp = true;
+
         logger.log(`Cleaning up SSE connection: ${reason}`);
+
         // Clear timers
         if (timeout) {
           clearTimeout(timeout);
@@ -549,11 +550,13 @@ export function initializeMcpApiHandler(
           clearInterval(interval);
           interval = null;
         }
+
         // Remove abort event listener
         if (abortHandler) {
           req.signal.removeEventListener("abort", abortHandler);
           abortHandler = null;
         }
+
         // Unsubscribe from Redis
         if (handleMessage) {
           try {
@@ -563,6 +566,7 @@ export function initializeMcpApiHandler(
             logger.error("Error unsubscribing from Redis:", error);
           }
         }
+
         // Close server and transport
         try {
           if (server?.server) {
@@ -574,13 +578,17 @@ export function initializeMcpApiHandler(
         } catch (error) {
           logger.error("Error closing server/transport:", error);
         }
+
         // Remove server from array and WeakMap
         servers = servers.filter((s) => s !== server);
         serverMetadata.delete(server);
+
         // End session event
         eventRes.endSession("SSE");
+
         // Clear logs array to free memory
         logs = [];
+
         // End response if not already ended
         if (!res.headersSent) {
           res.statusCode = 200;
@@ -594,7 +602,7 @@ export function initializeMcpApiHandler(
         serverMetadata.set(server, {
           sessionId,
           createdAt: new Date(),
-          transport,
+          transport
         });
 
         server.server.onclose = () => {
@@ -715,10 +723,7 @@ export function initializeMcpApiHandler(
             ) {
               try {
                 const result = JSON.parse(body);
-                eventRes.requestCompleted(
-                  request.body.method as string,
-                  result
-                );
+                eventRes.requestCompleted(request.body.method as string, result);
               } catch {
                 eventRes.requestCompleted(request.body.method as string, body);
               }
@@ -778,12 +783,10 @@ export function initializeMcpApiHandler(
 
         abortHandler = () => resolveTimeout("client hang up");
         req.signal.addEventListener("abort", abortHandler);
-
         // Handle response close event
         res.on("close", () => {
           cleanup("response closed");
         });
-
         // Handle response error event
         res.on("error", (error) => {
           logger.error("Response error:", error);

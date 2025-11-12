@@ -16,10 +16,6 @@ export function getRequiredToolScopes(): Record<string, string[]> | undefined {
   return authContext.getStore()?.requiredToolScopes;
 }
 
-export function withAuthContext<T>(
-  authInfo: AuthInfo,
-  requiredToolScopes: Record<string, string[]> | undefined,
-  callback: () => T
-): T {
+export function withAuthContext<T>(authInfo: AuthInfo, requiredToolScopes: Record<string, string[]> | undefined, callback: () => T): T {
   return authContext.run({ authInfo, requiredToolScopes }, callback);
 }
