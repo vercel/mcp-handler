@@ -278,14 +278,12 @@ export function initializeMcpApiHandler(
   const statelessTransport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
   });
-
   // Start periodic cleanup if not already running
   if (!cleanupInterval) {
     cleanupInterval = setInterval(() => {
       const now = Date.now();
       const staleThreshold = 5 * 60 * 1000; // 5 minutes
-
-      servers = servers.filter((server) => {
+      servers = servers.filter(server => {
         const metadata = serverMetadata.get(server);
         if (!metadata) {
           // No metadata means the server is orphaned
@@ -299,12 +297,9 @@ export function initializeMcpApiHandler(
           }
           return false;
         }
-
         const age = now - metadata.createdAt.getTime();
         if (age > staleThreshold) {
-          logger.log(
-            `Removing stale server (session ${metadata.sessionId}, age: ${age}ms)`
-          );
+          logger.log(`Removing stale server (session ${metadata.sessionId}, age: ${age}ms)`);
           try {
             if (server?.server) {
               server.server.close();
@@ -318,7 +313,6 @@ export function initializeMcpApiHandler(
           serverMetadata.delete(server);
           return false;
         }
-
         return true;
       });
     }, 30 * 1000); // Run every 30 seconds
@@ -534,7 +528,6 @@ export function initializeMcpApiHandler(
       });
 
       const server = new McpServer(serverInfo, serverOptions);
-
       // Track cleanup state to prevent double cleanup
       let isCleanedUp = false;
       let interval: NodeJS.Timeout | null = null;
@@ -542,14 +535,11 @@ export function initializeMcpApiHandler(
       let abortHandler: (() => void) | null = null;
       let handleMessage: ((message: string) => Promise<void>) | null = null;
       let logs: { type: LogLevel; messages: string[] }[] = [];
-
       // Comprehensive cleanup function
       const cleanup = async (reason: string) => {
         if (isCleanedUp) return;
         isCleanedUp = true;
-
         logger.log(`Cleaning up SSE connection: ${reason}`);
-
         // Clear timers
         if (timeout) {
           clearTimeout(timeout);
@@ -559,13 +549,11 @@ export function initializeMcpApiHandler(
           clearInterval(interval);
           interval = null;
         }
-
         // Remove abort event listener
         if (abortHandler) {
           req.signal.removeEventListener("abort", abortHandler);
           abortHandler = null;
         }
-
         // Unsubscribe from Redis
         if (handleMessage) {
           try {
@@ -575,7 +563,6 @@ export function initializeMcpApiHandler(
             logger.error("Error unsubscribing from Redis:", error);
           }
         }
-
         // Close server and transport
         try {
           if (server?.server) {
@@ -587,28 +574,22 @@ export function initializeMcpApiHandler(
         } catch (error) {
           logger.error("Error closing server/transport:", error);
         }
-
         // Remove server from array and WeakMap
         servers = servers.filter((s) => s !== server);
         serverMetadata.delete(server);
-
         // End session event
         eventRes.endSession("SSE");
-
         // Clear logs array to free memory
         logs = [];
-
         // End response if not already ended
         if (!res.headersSent) {
           res.statusCode = 200;
           res.end();
         }
       };
-
       try {
         await initializeServer(server);
         servers.push(server);
-
         // Store metadata in WeakMap
         serverMetadata.set(server, {
           sessionId,
