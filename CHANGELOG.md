@@ -1,5 +1,11 @@
 # mcp-handler
 
+## 1.0.4
+
+### Patch Changes
+
+- 1.0.4: update dependencies to use version 1.22.0 of @modelcontextprotocol/sdk
+
 ## 1.0.3
 
 ### Patch Changes
