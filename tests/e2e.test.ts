@@ -155,7 +155,44 @@ describe("e2e", () => {
     expect(capabilities?.tools).toBeDefined();
     expect(capabilities?.prompts).toBeDefined();
     expect(capabilities?.resources).toBeDefined();
-    expect(typeof (await client.listTools()).tools).toBe("object");
+    expect((await client.listTools()).tools).toStrictEqual([
+      {
+        "description": "Echo a message",
+        "inputSchema": {
+          "properties": {
+            "message": {
+              "type": "string",
+            },
+          },
+          "required": [
+            "message",
+          ],
+          "type": "object",
+        },
+        "name": "echo",
+      },
+    ]);
+    expect((await client.listPrompts()).prompts).toStrictEqual([
+      {
+        "arguments": [
+          {
+            "description": "The name of the person to greet",
+            "name": "name",
+            "required": true,
+          },
+        ],
+        "description": "Generate a greeting message",
+        "name": "greeting",
+      },
+    ]);
+    expect((await client.listResources()).resources).toStrictEqual([
+      {
+        "description": "A test resource",
+        "mimeType": "text/plain",
+        "name": "test-resource",
+        "uri": "test://example/resource",
+      },
+    ]);
   });
 
   it("should list tools", async () => {
