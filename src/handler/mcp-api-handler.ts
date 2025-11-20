@@ -21,6 +21,7 @@ import { createEvent } from "../lib/log-helper";
 import { EventEmittingResponse } from "../lib/event-emitter.js";
 import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types";
 import { getAuthContext } from "../auth/auth-context";
+import { validateToolScope } from "../auth/scope-validator";
 import { ServerOptions } from ".";
 
 interface SerializedRequest {
@@ -274,13 +275,11 @@ export function initializeMcpApiHandler(
   const statelessTransport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
   });
-  
   // Start periodic cleanup if not already running
   if (!cleanupInterval) {
     cleanupInterval = setInterval(() => {
       const now = Date.now();
       const staleThreshold = 5 * 60 * 1000; // 5 minutes
-      
       servers = servers.filter(server => {
         const metadata = serverMetadata.get(server);
         if (!metadata) {
@@ -295,7 +294,6 @@ export function initializeMcpApiHandler(
           }
           return false;
         }
-        
         const age = now - metadata.createdAt.getTime();
         if (age > staleThreshold) {
           logger.log(`Removing stale server (session ${metadata.sessionId}, age: ${age}ms)`);
@@ -312,7 +310,6 @@ export function initializeMcpApiHandler(
           serverMetadata.delete(server);
           return false;
         }
-        
         return true;
       });
     }, 30 * 1000); // Run every 30 seconds
@@ -378,6 +375,64 @@ export function initializeMcpApiHandler(
           body: bodyContent,
           auth: req.auth, // Use the auth info that should already be set by withMcpAuth
         });
+
+        if (
+          bodyContent &&
+          typeof bodyContent === "object" &&
+          "method" in bodyContent
+        ) {
+          const method = bodyContent.method;
+          if (
+            method === "tools/call" &&
+            bodyContent.params &&
+            bodyContent.params.name
+          ) {
+            const validation = validateToolScope(bodyContent.params.name);
+
+            if (
+              !validation.valid &&
+              validation.missingScopes &&
+              validation.availableScopes
+            ) {
+              const origin = new URL(req.url).origin;
+              const resourceMetadataUrl = `${origin}/.well-known/oauth-protected-resource`;
+
+              const allRelevantScopes = [
+                ...new Set([
+                  ...validation.availableScopes,
+                  ...validation.missingScopes,
+                ]),
+              ];
+              const scopeParam = allRelevantScopes.join(" ");
+
+              const errorDescription = `Additional permissions required for tool '${
+                bodyContent.params.name
+              }'. Missing: ${validation.missingScopes.join(", ")}`;
+
+              const wwwAuthenticateHeader = [
+                'Bearer error="insufficient_scope"',
+                `scope="${scopeParam}"`,
+                `resource_metadata="${resourceMetadataUrl}"`,
+                `error_description="${errorDescription}"`,
+              ].join(", ");
+
+              res.statusCode = 403;
+              res.setHeader("WWW-Authenticate", wwwAuthenticateHeader);
+              res.setHeader("Content-Type", "application/json");
+              res.end(
+                JSON.stringify({
+                  jsonrpc: "2.0",
+                  error: {
+                    code: -32003,
+                    message: errorDescription,
+                  },
+                  id: bodyContent.id || null,
+                })
+              );
+              return;
+            }
+          }
+        }
 
         // Create a response that will emit events
         const wrappedRes = new EventEmittingResponse(
@@ -470,7 +525,7 @@ export function initializeMcpApiHandler(
       });
 
       const server = new McpServer(serverInfo, serverOptions);
-      
+
       // Track cleanup state to prevent double cleanup
       let isCleanedUp = false;
       let interval: NodeJS.Timeout | null = null;
@@ -478,14 +533,14 @@ export function initializeMcpApiHandler(
       let abortHandler: (() => void) | null = null;
       let handleMessage: ((message: string) => Promise<void>) | null = null;
       let logs: { type: LogLevel; messages: string[]; }[] = [];
-      
+
       // Comprehensive cleanup function
       const cleanup = async (reason: string) => {
         if (isCleanedUp) return;
         isCleanedUp = true;
-        
+
         logger.log(`Cleaning up SSE connection: ${reason}`);
-        
+
         // Clear timers
         if (timeout) {
           clearTimeout(timeout);
@@ -495,13 +550,13 @@ export function initializeMcpApiHandler(
           clearInterval(interval);
           interval = null;
         }
-        
+
         // Remove abort event listener
         if (abortHandler) {
           req.signal.removeEventListener("abort", abortHandler);
           abortHandler = null;
         }
-        
+
         // Unsubscribe from Redis
         if (handleMessage) {
           try {
@@ -511,7 +566,7 @@ export function initializeMcpApiHandler(
             logger.error("Error unsubscribing from Redis:", error);
           }
         }
-        
+
         // Close server and transport
         try {
           if (server?.server) {
@@ -523,28 +578,26 @@ export function initializeMcpApiHandler(
         } catch (error) {
           logger.error("Error closing server/transport:", error);
         }
-        
+
         // Remove server from array and WeakMap
         servers = servers.filter((s) => s !== server);
         serverMetadata.delete(server);
-        
+
         // End session event
         eventRes.endSession("SSE");
-        
+
         // Clear logs array to free memory
         logs = [];
-        
+
         // End response if not already ended
         if (!res.headersSent) {
           res.statusCode = 200;
           res.end();
         }
       };
-      
       try {
         await initializeServer(server);
         servers.push(server);
-        
         // Store metadata in WeakMap
         serverMetadata.set(server, {
           sessionId,
@@ -577,6 +630,71 @@ export function initializeMcpApiHandler(
             headers: request.headers,
             body: request.body,
           });
+
+          if (
+            request.body &&
+            typeof request.body === "object" &&
+            "method" in request.body
+          ) {
+            const method = request.body.method;
+            if (
+              method === "tools/call" &&
+              request.body.params &&
+              request.body.params.name
+            ) {
+              const validation = validateToolScope(request.body.params.name);
+
+              if (
+                !validation.valid &&
+                validation.missingScopes &&
+                validation.availableScopes
+              ) {
+                const origin = new URL(request.url).origin;
+                const resourceMetadataUrl = `${origin}/.well-known/oauth-protected-resource`;
+
+                const allRelevantScopes = [
+                  ...new Set([
+                    ...validation.availableScopes,
+                    ...validation.missingScopes,
+                  ]),
+                ];
+                const scopeParam = allRelevantScopes.join(" ");
+
+                const errorDescription = `Additional permissions required for tool '${
+                  request.body.params.name
+                }'. Missing: ${validation.missingScopes.join(", ")}`;
+
+                const wwwAuthenticateHeader = [
+                  'Bearer error="insufficient_scope"',
+                  `scope="${scopeParam}"`,
+                  `resource_metadata="${resourceMetadataUrl}"`,
+                  `error_description="${errorDescription}"`,
+                ].join(", ");
+
+                const errorResponse = {
+                  jsonrpc: "2.0",
+                  error: {
+                    code: -32003,
+                    message: errorDescription,
+                  },
+                  id: request.body.id || null,
+                };
+
+                await redisPublisher.publish(
+                  `responses:${sessionId}:${request.requestId}`,
+                  JSON.stringify({
+                    status: 403,
+                    headers: {
+                      "WWW-Authenticate": wwwAuthenticateHeader,
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(errorResponse),
+                  })
+                );
+                return;
+              }
+            }
+          }
 
           const syntheticRes = new EventEmittingResponse(
             req,
@@ -665,12 +783,10 @@ export function initializeMcpApiHandler(
 
         abortHandler = () => resolveTimeout("client hang up");
         req.signal.addEventListener("abort", abortHandler);
-        
         // Handle response close event
         res.on("close", () => {
           cleanup("response closed");
         });
-        
         // Handle response error event
         res.on("error", (error) => {
           logger.error("Response error:", error);
@@ -726,24 +842,27 @@ export function initializeMcpApiHandler(
       let timeout: NodeJS.Timeout | null = null;
       let hasResponded = false;
       let isCleanedUp = false;
-      
+
       // Cleanup function to ensure all resources are freed
       const cleanup = async () => {
         if (isCleanedUp) return;
         isCleanedUp = true;
-        
+
         if (timeout) {
           clearTimeout(timeout);
           timeout = null;
         }
-        
+
         try {
           await redis.unsubscribe(`responses:${sessionId}:${requestId}`);
         } catch (error) {
-          logger.error("Error unsubscribing from Redis response channel:", error);
+          logger.error(
+            "Error unsubscribing from Redis response channel:",
+            error
+          );
         }
       };
-      
+
       // Safe response handler to prevent double res.end()
       const sendResponse = async (status: number, body: string) => {
         if (!hasResponded) {
@@ -753,7 +872,7 @@ export function initializeMcpApiHandler(
           await cleanup();
         }
       };
-      
+
       // Response handler
       const handleResponse = async (message: string) => {
         try {
@@ -795,7 +914,7 @@ export function initializeMcpApiHandler(
             await cleanup();
           }
         });
-        
+
         // Handle response error event
         res.on("error", async (error) => {
           logger.error("Response error in message handler:", error);
