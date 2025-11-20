@@ -21,10 +21,12 @@ describe("e2e", () => {
   beforeEach(async () => {
     const _mcpHandler = createMcpHandler(
       (server) => {
-        server.tool(
+        server.registerTool(
           "echo",
-          "Echo a message",
-          { message: z.string() },
+          {
+            description: "Echo a message",
+            inputSchema: { message: z.string() },
+          },
           async ({ message }, extra) => {
             return {
               content: [
@@ -38,13 +40,61 @@ describe("e2e", () => {
             };
           }
         );
+
+        server.registerPrompt(
+          "greeting",
+          {
+            description: "Generate a greeting message",
+            argsSchema: {
+              name: z.string().describe("The name of the person to greet"),
+            },
+          },
+          async ({ name }) => {
+            return {
+              messages: [
+                {
+                  role: "user" as const,
+                  content: {
+                    type: "text" as const,
+                    text: `Hello, ${name}! Welcome to the MCP server.`,
+                  },
+                },
+              ],
+            };
+          }
+        );
+
+        server.registerResource(
+          "test-resource",
+          "test://example/resource",
+          {
+            description: "A test resource",
+            mimeType: "text/plain",
+          },
+          async () => {
+            return {
+              contents: [
+                {
+                  uri: "test://example/resource",
+                  text: "This is test resource content",
+                  mimeType: "text/plain",
+                },
+              ],
+            };
+          }
+        );
       },
       {
         capabilities: {
           tools: {
-            echo: {
-              description: "Echo a message",
-            },
+            listChanged: true,
+          },
+          prompts: {
+            listChanged: true,
+          },
+          resources: {
+            listChanged: true,
+            subscribe: true,
           },
         },
       },
@@ -89,11 +139,7 @@ describe("e2e", () => {
         version: "1.0.0",
       },
       {
-        capabilities: {
-          prompts: {},
-          resources: {},
-          tools: {},
-        },
+        capabilities: {},
       }
     );
     await client.connect(transport);
@@ -107,10 +153,46 @@ describe("e2e", () => {
     const capabilities = client.getServerCapabilities();
     expect(capabilities).toBeDefined();
     expect(capabilities?.tools).toBeDefined();
-    expect(capabilities?.tools?.echo).toBeDefined();
-    expect((capabilities?.tools?.echo as any).description).toEqual(
-      "Echo a message"
-    );
+    expect(capabilities?.prompts).toBeDefined();
+    expect(capabilities?.resources).toBeDefined();
+    expect((await client.listTools()).tools).toStrictEqual([
+      {
+        "description": "Echo a message",
+        "inputSchema": {
+          "properties": {
+            "message": {
+              "type": "string",
+            },
+          },
+          "required": [
+            "message",
+          ],
+          "type": "object",
+        },
+        "name": "echo",
+      },
+    ]);
+    expect((await client.listPrompts()).prompts).toStrictEqual([
+      {
+        "arguments": [
+          {
+            "description": "The name of the person to greet",
+            "name": "name",
+            "required": true,
+          },
+        ],
+        "description": "Generate a greeting message",
+        "name": "greeting",
+      },
+    ]);
+    expect((await client.listResources()).resources).toStrictEqual([
+      {
+        "description": "A test resource",
+        "mimeType": "text/plain",
+        "name": "test-resource",
+        "uri": "test://example/resource",
+      },
+    ]);
   });
 
   it("should list tools", async () => {
@@ -119,6 +201,61 @@ describe("e2e", () => {
 
     const echo = tools.find((tool) => tool.name === "echo");
     expect(echo).toBeDefined();
+    expect(echo?.description).toEqual("Echo a message");
+  });
+
+  it("should list prompts", async () => {
+    const { prompts } = await client.listPrompts();
+    expect(prompts.length).toEqual(1);
+
+    const greeting = prompts.find((prompt) => prompt.name === "greeting");
+    expect(greeting).toBeDefined();
+    expect(greeting?.description).toEqual("Generate a greeting message");
+    expect(greeting?.arguments).toBeDefined();
+    expect(greeting?.arguments?.length).toBeGreaterThan(0);
+  });
+
+  it("should get a prompt", async () => {
+    const result = await client.getPrompt({
+      name: "greeting",
+      arguments: {
+        name: "Alice",
+      },
+    });
+    expect(result.messages).toBeDefined();
+    expect(result.messages.length).toEqual(1);
+    expect(result.messages[0].role).toEqual("user");
+    expect(result.messages[0].content.type).toEqual("text");
+    if (result.messages[0].content.type === "text") {
+      expect(result.messages[0].content.text).toContain("Hello, Alice!");
+    }
+  });
+
+  it("should list resources", async () => {
+    const { resources } = await client.listResources();
+    expect(resources.length).toEqual(1);
+
+    const testResource = resources.find(
+      (resource) => resource.name === "test-resource"
+    );
+    expect(testResource).toBeDefined();
+    expect(testResource?.uri).toEqual("test://example/resource");
+    expect(testResource?.description).toEqual("A test resource");
+  });
+
+  it("should read a resource", async () => {
+    const result = await client.readResource({
+      uri: "test://example/resource",
+    });
+    expect(result.contents).toBeDefined();
+    expect(result.contents.length).toEqual(1);
+    expect(result.contents[0].uri).toEqual("test://example/resource");
+    expect("text" in result.contents[0]).toBe(true);
+    if ("text" in result.contents[0]) {
+      expect(result.contents[0].text).toEqual(
+        "This is test resource content"
+      );
+    }
   });
 
   it("should call a tool", async () => {
@@ -154,11 +291,7 @@ describe("e2e", () => {
         version: "1.0.0",
       },
       {
-        capabilities: {
-          prompts: {},
-          resources: {},
-          tools: {},
-        },
+        capabilities: {},
       }
     );
     await authenticatedClient.connect(authenticatedTransport);
@@ -194,11 +327,7 @@ describe("e2e", () => {
         version: "1.0.0",
       },
       {
-        capabilities: {
-          prompts: {},
-          resources: {},
-          tools: {},
-        },
+        capabilities: {},
       }
     );
     verifyTokenMock.mockImplementation(() => {
