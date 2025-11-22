@@ -27,4 +27,4 @@ const handler = createMcpRouteHandler(
   }
 );
 
-export { handler as GET, handler as POST };
+export { handler as GET, handler as POST, handler as DELETE };

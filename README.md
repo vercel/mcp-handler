@@ -47,7 +47,7 @@ const handler = createMcpHandler(
     verboseLogs: true,
   }
 );
-export { handler as GET, handler as POST };
+export { handler as GET, handler as POST, handler as DELETE };
 ```
 
 ### Advanced Routing
@@ -304,7 +304,7 @@ const authHandler = withMcpAuth(handler, verifyToken, {
   resourceMetadataPath: "/.well-known/oauth-protected-resource", // Optional: Custom metadata path
 });
 
-export { authHandler as GET, authHandler as POST };
+export { authHandler as GET, authHandler as POST, authHandler as DELETE };
 ```
 
 ### OAuth Protected Resource Metadata
