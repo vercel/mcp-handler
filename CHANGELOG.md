@@ -1,5 +1,13 @@
 # mcp-handler
 
+## 1.0.5
+
+### Patch Changes
+
+- 81bdf1c: Update README, examples, and support for > MCP TS SDK 1.25.0
+- 6e75141: Add raw headers to incoming message
+- 51b8a24: bump @modelcontextprotocol/sdk version
+
 ## 1.0.4
 
 ### Patch Changes
