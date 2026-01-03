@@ -5,6 +5,7 @@ import {
   ServerError,
 } from "@modelcontextprotocol/sdk/server/auth/errors.js";
 import {withAuthContext} from "./auth-context";
+import {getPublicOrigin} from "../lib/url";
 
 declare global {
   interface Request {
@@ -22,14 +23,25 @@ export function withMcpAuth(
     required = false,
     resourceMetadataPath = "/.well-known/oauth-protected-resource",
     requiredScopes,
+    resourceUrl,
   }: {
     required?: boolean;
     resourceMetadataPath?: string;
     requiredScopes?: string[];
+    /**
+     * Explicit resource URL override. When provided, this URL is used as the
+     * origin for constructing the resource_metadata URL. Use this when running
+     * behind a proxy that doesn't set standard forwarding headers, or when you
+     * need to specify a specific public URL.
+     *
+     * If not provided, the origin is automatically detected from proxy headers
+     * (X-Forwarded-Host, X-Forwarded-Proto, Forwarded) or falls back to req.url.
+     */
+    resourceUrl?: string;
   } = {}
 ) {
   return async (req: Request) => {
-    const origin = new URL(req.url).origin;
+    const origin = resourceUrl ?? getPublicOrigin(req);
     const resourceMetadataUrl = `${origin}${resourceMetadataPath}`;
 
     const authHeader = req.headers.get("Authorization");
