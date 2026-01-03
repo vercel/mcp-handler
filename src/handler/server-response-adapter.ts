@@ -48,7 +48,7 @@ export function createServerResponseAdapter(
     const bufferedData: Uint8Array[] = [];
 
     const write = (
-      chunk: Buffer | string,
+      chunk: Buffer | string | Uint8Array,
       encoding?: BufferEncoding
     ): boolean => {
       if (encoding) {
@@ -57,14 +57,26 @@ export function createServerResponseAdapter(
       if (chunk instanceof Buffer) {
         throw new Error('Buffer not supported');
       }
+
+      // SDK 1.25+ uses Hono which sends Uint8Array (already encoded)
+      // SDK 1.24- sends strings that need encoding
+      let data: Uint8Array;
+      if (chunk instanceof Uint8Array) {
+        data = chunk;
+      } else if (typeof chunk === 'string') {
+        data = new TextEncoder().encode(chunk);
+      } else {
+        throw new Error('Unexpected chunk type: ' + typeof chunk);
+      }
+
       if (!wroteHead) {
         writeHead(statusCode, headers);
       }
       if (!controller) {
-        bufferedData.push(new TextEncoder().encode(chunk as string));
+        bufferedData.push(data);
         return true;
       }
-      controller.enqueue(new TextEncoder().encode(chunk as string));
+      controller.enqueue(data);
       return true;
     };
 
