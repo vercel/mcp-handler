@@ -81,7 +81,12 @@ const verifyToken = async (
 // Create the auth handler with required scopes
 const authHandler = withMcpAuth(handler, verifyToken, {
   required: true,
+  // Define scopes at a global level
   requiredScopes: ["read:messages"],
+  // or define scopes at a tool-level
+  requiredToolScopes: {
+    echo: ["read:messages"], // Only needs 'read:messages' scope
+  },
   resourceMetadataPath: "/.well-known/oauth-protected-resource",
 });
 

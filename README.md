@@ -108,23 +108,26 @@ import { createMcpHandler } from "mcp-handler";
 import { getHeader, defineEventHandler, fromWebHandler } from "h3";
 import { z } from "zod";
 
-const handler = createMcpHandler((server) => {
-  server.tool(
-    "roll_dice",
-    "Rolls an N-sided die",
-    {
-      sides: z.number().int().min(2)
-    },
-    async ({ sides }) => {
-      const value = 1 + Math.floor(Math.random() * sides)
-      return {
-        content: [{ type: "text", text: `🎲 You rolled a ${value}!` }]
+const handler = createMcpHandler(
+  (server) => {
+    server.tool(
+      "roll_dice",
+      "Rolls an N-sided die",
+      {
+        sides: z.number().int().min(2),
+      },
+      async ({ sides }) => {
+        const value = 1 + Math.floor(Math.random() * sides);
+        return {
+          content: [{ type: "text", text: `🎲 You rolled a ${value}!` }],
+        };
       }
-    }
-  )
-}, {
-  // Optional server options
-});
+    );
+  },
+  {
+    // Optional server options
+  }
+);
 
 export default fromWebHandler(handler);
 ```
@@ -233,7 +236,7 @@ interface Config {
 
 ## Authorization
 
-The MCP adapter supports the [MCP Authorization Specification](https://modelcontextprotocol.io/specification/draft/basic/authorization) per the through the `withMcpAuth` wrapper. This allows you to protect your MCP endpoints and access authentication information in your tools.
+The MCP adapter supports the [MCP Authorization Specification](https://modelcontextprotocol.io/specification/draft/basic/authorization) through the `withMcpAuth` wrapper. This allows you to protect your MCP endpoints and access authentication information in your tools.
 
 ### Basic Usage
 
@@ -266,6 +269,22 @@ const handler = createMcpHandler(
         };
       }
     );
+
+    server.tool(
+      "admin_action",
+      "Admin-only action",
+      { action: z.string() },
+      async ({ action }, extra) => {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Admin action: ${action}`,
+            },
+          ],
+        };
+      }
+    );
   },
   {
     // Optional server options
@@ -288,7 +307,7 @@ const verifyToken = async (
 
   return {
     token: bearerToken,
-    scopes: ["read:stuff"], // Add relevant scopes
+    scopes: ["read:echo", "admin:write"], // Add relevant scopes based on token
     clientId: "user123", // Add user/client identifier
     extra: {
       // Optional extra information
@@ -297,15 +316,44 @@ const verifyToken = async (
   };
 };
 
-// Make authorization required
+// Apply authentication with tool-specific scopes
 const authHandler = withMcpAuth(handler, verifyToken, {
   required: true, // Make auth required for all requests
-  requiredScopes: ["read:stuff"], // Optional: Require specific scopes
+  requiredToolScopes: {
+    echo: ["read:echo"], // Only needs 'read:echo' scope
+    admin_action: ["admin:write"], // Requires 'admin:write' scope
+  },
   resourceMetadataPath: "/.well-known/oauth-protected-resource", // Optional: Custom metadata path
 });
 
 export { authHandler as GET, authHandler as POST };
 ```
+
+### Using Both requiredScopes and requiredToolScopes Together
+
+`requiredScopes` are validated first (403 if missing), then `requiredToolScopes` per tool call:
+
+```typescript
+const authHandler = withMcpAuth(handler, verifyToken, {
+  required: true,
+  requiredScopes: ["read:stuff"],
+  requiredToolScopes: {
+    echo: ["read:echo"],
+    admin_action: ["admin:write"],
+  },
+});
+```
+
+### Alternative: Global Scope Requirements Only
+
+```typescript
+const authHandler = withMcpAuth(handler, verifyToken, {
+  required: true,
+  requiredScopes: ["read:stuff"],
+});
+```
+
+**Note:** `requiredToolScopes` (with or without `requiredScopes`) is recommended for [progressive authorization and granular access control](https://modelcontextprotocol.io/specification/draft/basic/authorization#scope-challenge-handling).
 
 ### OAuth Protected Resource Metadata
 
@@ -340,10 +388,199 @@ which by default is `/.well-known/oauth-protected-resource` (the full URL will b
 ### Authorization Flow
 
 1. Client makes a request with a Bearer token in the Authorization header
-2. The `verifyToken` function validates the token and returns auth info
+2. The `verifyToken` function validates the token and returns auth info with associated scopes
 3. If authentication is required and fails, a 401 response is returned
-4. If specific scopes are required and missing, a 403 response is returned
+4. If tool-specific scopes (defined in `requiredToolScopes`) or global scopes (defined in `requiredScopes`) are required and missing, a 403 response is returned with the required scopes in the `WWW-Authenticate` header
 5. On successful authentication, the auth info is available in tool handlers via `extra.authInfo`
+
+### Per-Tool Scope Validation
+
+The MCP handler supports per-tool scope validation, allowing you to define specific scope requirements for each tool. This enables progressive authorization where clients can start with minimal permissions and request additional scopes as needed.
+
+#### Basic Per-Tool Scope Configuration
+
+```typescript
+// app/api/[transport]/route.ts
+import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
+import { createMcpHandler, withMcpAuth } from "mcp-handler";
+import { z } from "zod";
+
+const handler = createMcpHandler(
+  (server) => {
+    server.tool(
+      "roll_dice",
+      "Rolls an N-sided die",
+      { sides: z.number().int().min(2) },
+      async ({ sides }) => {
+        const value = 1 + Math.floor(Math.random() * sides);
+        return {
+          content: [{ type: "text", text: `🎲 You rolled a ${value}!` }],
+        };
+      }
+    );
+
+    server.tool(
+      "admin_delete",
+      "Admin tool to delete data",
+      { id: z.string() },
+      async ({ id }) => {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `🗑️ Deleted item with id: ${id}`,
+            },
+          ],
+        };
+      }
+    );
+
+    server.tool(
+      "user_profile",
+      "Get user profile information",
+      { userId: z.string() },
+      async ({ userId }) => {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `👤 Profile for user: ${userId}`,
+            },
+          ],
+        };
+      }
+    );
+  },
+  {
+    capabilities: {
+      tools: {
+        roll_dice: {
+          description: "Roll a dice",
+        },
+        admin_delete: {
+          description: "Admin delete operation",
+        },
+        user_profile: {
+          description: "Get user profile",
+        },
+      },
+    },
+  }
+);
+
+const verifyToken = async (
+  req: Request,
+  bearerToken?: string
+): Promise<AuthInfo | undefined> => {
+  if (!bearerToken) return undefined;
+
+  // Example token validation logic
+  const isValid = bearerToken.startsWith("Bearer__EXAMPLE__");
+
+  if (!isValid) return undefined;
+
+  // Return different scopes based on token type
+  if (bearerToken.includes("admin")) {
+    return {
+      token: bearerToken,
+      scopes: ["roll:dice", "delete:admin", "read:profile"],
+      clientId: "admin-client",
+      extra: {
+        userId: "admin-user",
+        permissions: ["admin"],
+      },
+    };
+  } else {
+    return {
+      token: bearerToken,
+      scopes: ["roll:dice", "read:profile"], // No admin scopes
+      clientId: "regular-client",
+      extra: {
+        userId: "regular-user",
+        permissions: ["user"],
+      },
+    };
+  }
+};
+
+// Apply authentication with tool-specific scopes
+const authHandler = withMcpAuth(handler, verifyToken, {
+  required: true,
+  requiredToolScopes: {
+    roll_dice: ["roll:dice"], // Only needs 'roll:dice' scope
+    admin_delete: ["delete:admin"], // Requires admin permissions
+    user_profile: ["read:profile"], // Only needs 'read:profile' scope
+  },
+});
+
+export { authHandler as GET, authHandler as POST, authHandler as DELETE };
+```
+
+#### MCP Spec Compliant Error Responses
+
+When a client attempts to call a tool without sufficient scopes, the server returns a 403 Forbidden response following the MCP specification for Scope Challenge Handling:
+
+```http
+HTTP/1.1 403 Forbidden
+WWW-Authenticate: Bearer error="insufficient_scope",
+                         scope="roll:dice read:profile delete:admin",
+                         resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource",
+                         error_description="Additional permissions required for tool 'admin_delete'. Missing: delete:admin"
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "error": {
+    "code": -32003,
+    "message": "Additional permissions required for tool 'admin_delete'. Missing: delete:admin"
+  },
+  "id": null
+}
+```
+
+#### Step-Up Authorization Flow
+
+The implementation supports the MCP Step-Up Authorization Flow:
+
+1. **Client receives 403 with insufficient scope** - The server returns a 403 response with the `WWW-Authenticate` header containing the required scopes
+2. **Client parses scope information** - The client extracts the `scope` parameter from the `WWW-Authenticate` header
+3. **Client initiates re-authorization** - The client requests a new token with the additional scopes
+4. **Client retries the original request** - The client retries the tool call with the new token
+
+#### Scope Parameter Strategy
+
+The server uses the **recommended approach** for scope inclusion:
+
+- **Includes existing relevant scopes** - Prevents clients from losing previously granted permissions
+- **Includes newly required scopes** - Specifies what additional permissions are needed
+- **No duplicate scopes** - Ensures clean scope lists
+
+Example scope parameter: `"roll:dice read:profile delete:admin"`
+
+#### Progressive Authorization Example
+
+```typescript
+// Client starts with minimal scopes
+const userToken = "Bearer__EXAMPLE__user_token"; // scopes: ["roll:dice", "read:profile"]
+
+// ✅ Can call roll_dice and user_profile
+await client.callTool({ name: "roll_dice", arguments: { sides: 6 } });
+await client.callTool({ name: "user_profile", arguments: { userId: "123" } });
+
+// ❌ Cannot call admin_delete - gets 403 with scope challenge
+try {
+  await client.callTool({ name: "admin_delete", arguments: { id: "123" } });
+} catch (error) {
+  // Error includes WWW-Authenticate header with required scopes
+  // Client can now request additional scopes and retry
+}
+
+// After getting admin token with additional scopes
+const adminToken = "Bearer__EXAMPLE__admin_token"; // scopes: ["roll:dice", "delete:admin", "read:profile"]
+
+// ✅ Can now call all tools including admin_delete
+await client.callTool({ name: "admin_delete", arguments: { id: "123" } });
+```
 
 ## Features
 
@@ -351,6 +588,9 @@ which by default is `/.well-known/oauth-protected-resource` (the full URL will b
 - **Multiple Transport Options**: Supports both Streamable HTTP and Server-Sent Events (SSE) transports
 - **Redis Integration**: For SSE transport resumability
 - **TypeScript Support**: Full TypeScript support with type definitions
+- **Per-Tool Scope Validation**: Define specific scope requirements for each tool with MCP spec compliant error responses
+- **Progressive Authorization**: Support for step-up authorization flows where clients can request additional scopes as needed
+- **MCP Authorization Spec Compliance**: Full support for the MCP Authorization Specification including WWW-Authenticate headers and scope challenge handling
 
 ## Requirements
 

@@ -1,10 +1,10 @@
-import {AuthInfo} from "@modelcontextprotocol/sdk/server/auth/types.js";
+import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import {
   InvalidTokenError,
   InsufficientScopeError,
   ServerError,
 } from "@modelcontextprotocol/sdk/server/auth/errors.js";
-import {withAuthContext} from "./auth-context";
+import { withAuthContext } from "./auth-context";
 
 declare global {
   interface Request {
@@ -22,10 +22,12 @@ export function withMcpAuth(
     required = false,
     resourceMetadataPath = "/.well-known/oauth-protected-resource",
     requiredScopes,
+    requiredToolScopes,
   }: {
     required?: boolean;
     resourceMetadataPath?: string;
     requiredScopes?: string[];
+    requiredToolScopes?: Record<string, string[]>;
   } = {}
 ) {
   return async (req: Request) => {
@@ -63,7 +65,6 @@ export function withMcpAuth(
         return handler(req);
       }
 
-      // Check if token has the required scopes (if any)
       if (requiredScopes?.length) {
         const hasAllScopes = requiredScopes.every((scope) =>
           authInfo!.scopes.includes(scope)
@@ -73,16 +74,13 @@ export function withMcpAuth(
           throw new InsufficientScopeError("Insufficient scope");
         }
       }
-
-      // Check if the token is expired
       if (authInfo.expiresAt && authInfo.expiresAt < Date.now() / 1000) {
         throw new InvalidTokenError("Token has expired");
       }
 
-      // Set auth info on the request object after successful verification
       req.auth = authInfo;
 
-      return withAuthContext(authInfo, () => handler(req));
+      return withAuthContext(authInfo, requiredToolScopes, () => handler(req));
     } catch (error) {
       if (error instanceof InvalidTokenError) {
         return new Response(JSON.stringify(error.toResponseObject()), {
