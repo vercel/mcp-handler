@@ -13,3 +13,12 @@ export {
   generateProtectedResourceMetadata,
   metadataCorsOptionsRequestHandler,
 } from "./auth/auth-metadata";
+
+export {
+  withObservability,
+  createObservabilitySpan,
+  getCurrentSpan,
+  addSpanAttribute,
+  addSpanEvent,
+  type ObservabilityConfig,
+} from "./observability";
