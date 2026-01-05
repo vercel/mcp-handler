@@ -1,5 +1,11 @@
 # mcp-handler
 
+## 1.0.6
+
+### Patch Changes
+
+- a9c7af5: Ensure auth profiles stay tied to the request
+
 ## 1.0.5
 
 ### Patch Changes
