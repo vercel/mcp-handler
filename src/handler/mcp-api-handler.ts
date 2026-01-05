@@ -29,6 +29,7 @@ interface SerializedRequest {
   method: string;
   body: BodyType;
   headers: IncomingHttpHeaders;
+  auth?: AuthInfo;
 }
 
 type LogLevel = "log" | "error" | "warn" | "info" | "debug";
@@ -571,11 +572,13 @@ export function initializeMcpApiHandler(
           const request = JSON.parse(message) as SerializedRequest;
 
           // Make in IncomingMessage object because that is what the SDK expects.
+          // Pass auth from the serialized request to preserve the caller's auth context
           const req = createFakeIncomingMessage({
             method: request.method,
             url: request.url,
             headers: request.headers,
             body: request.body,
+            auth: request.auth,
           });
 
           const syntheticRes = new EventEmittingResponse(
@@ -720,6 +723,7 @@ export function initializeMcpApiHandler(
         method: req.method || "",
         body: parsedBody,
         headers: Object.fromEntries(req.headers.entries()),
+        auth: req.auth,
       };
 
       // Declare timeout and response handling state before subscription
