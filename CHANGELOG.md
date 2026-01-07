@@ -1,5 +1,12 @@
 # mcp-handler
 
+## 1.0.7
+
+### Patch Changes
+
+- 5a92040: Update pinned version of MCP TS SDK to 1.25.2 for vulnerability patch
+- 8c51d39: Allow passing in sessionIdGenerator for stateful sessions
+
 ## 1.0.6
 
 ### Patch Changes
