@@ -1,5 +1,10 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+// IMPORTANT: These imports are lazy-loaded to avoid polluting global state at startup.
+// The @modelcontextprotocol/sdk has dependencies (via undici) that modify global Response,
+// which breaks Next.js App Routes. By using dynamic imports, we defer loading until
+// the first request, after Next.js has fully initialized.
+import type { McpServer as McpServerType } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { SSEServerTransport as SSEServerTransportType } from "@modelcontextprotocol/sdk/server/sse.js";
+import type { StreamableHTTPServerTransport as StreamableHTTPServerTransportType } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import {
   type IncomingHttpHeaders,
   IncomingMessage,
@@ -8,7 +13,6 @@ import {
 import { createClient } from "redis";
 import { Socket } from "node:net";
 import { Readable } from "node:stream";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { BodyType } from "./server-response-adapter";
 import assert from "node:assert";
 import type {
@@ -19,9 +23,30 @@ import type {
 } from "../lib/log-helper";
 import { createEvent } from "../lib/log-helper";
 import { EventEmittingResponse } from "../lib/event-emitter.js";
-import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types";
+import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types";
 import { getAuthContext } from "../auth/auth-context";
 import { ServerOptions } from ".";
+
+// Lazy-loaded SDK modules - populated on first use
+let McpServer: typeof McpServerType;
+let SSEServerTransport: typeof SSEServerTransportType;
+let StreamableHTTPServerTransport: typeof StreamableHTTPServerTransportType;
+let sdkLoaded = false;
+
+async function loadSdk(): Promise<void> {
+  if (sdkLoaded) return;
+
+  const [mcpModule, sseModule, streamableModule] = await Promise.all([
+    import("@modelcontextprotocol/sdk/server/mcp.js"),
+    import("@modelcontextprotocol/sdk/server/sse.js"),
+    import("@modelcontextprotocol/sdk/server/streamableHttp.js"),
+  ]);
+
+  McpServer = mcpModule.McpServer;
+  SSEServerTransport = sseModule.SSEServerTransport;
+  StreamableHTTPServerTransport = streamableModule.StreamableHTTPServerTransport;
+  sdkLoaded = true;
+}
 
 interface SerializedRequest {
   requestId: string;
@@ -186,10 +211,10 @@ let redisPublisher: ReturnType<typeof createClient>;
 let redis: ReturnType<typeof createClient>;
 
 // WeakMap to track server metadata without preventing GC
-const serverMetadata = new WeakMap<McpServer, {
+const serverMetadata = new WeakMap<McpServerType, {
   sessionId: string;
   createdAt: Date;
-  transport: SSEServerTransport;
+  transport: SSEServerTransportType;
 }>();
 
 // Periodic cleanup interval
@@ -230,8 +255,8 @@ async function initializeRedis({
 
 export function initializeMcpApiHandler(
   initializeServer:
-    | ((server: McpServer) => Promise<void>)
-    | ((server: McpServer) => void),
+    | ((server: McpServerType) => Promise<void>)
+    | ((server: McpServerType) => void),
   serverOptions: ServerOptions = {},
   config: Config = {
     redisUrl: process.env.REDIS_URL || process.env.KV_URL,
@@ -275,13 +300,12 @@ export function initializeMcpApiHandler(
 
   const logger = createLogger(verboseLogs);
 
-  let servers: McpServer[] = [];
+  let servers: McpServerType[] = [];
 
-  let statelessServer: McpServer;
-  const statelessTransport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: sessionIdGenerator,
-  });
-  
+  // These are lazy-initialized on first request to avoid polluting global state at startup
+  let statelessServer: McpServerType;
+  let statelessTransport: StreamableHTTPServerTransportType;
+
   // Start periodic cleanup if not already running
   if (!cleanupInterval) {
     cleanupInterval = setInterval(() => {
@@ -358,12 +382,19 @@ export function initializeMcpApiHandler(
       }
 
       if (req.method === "POST") {
+        // Load SDK modules lazily on first request to avoid global state pollution at startup
+        await loadSdk();
+
         const eventRes = new EventEmittingResponse(
           createFakeIncomingMessage(),
           config.onEvent
         );
 
         if (!statelessServer) {
+          // Create transport lazily on first use
+          statelessTransport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: sessionIdGenerator,
+          });
           statelessServer = new McpServer(serverInfo, mcpServerOptions);
           await initializeServer(statelessServer);
           await statelessServer.connect(statelessTransport);
@@ -453,6 +484,9 @@ export function initializeMcpApiHandler(
           .end("Not Acceptable");
         return;
       }
+
+      // Load SDK modules lazily on first request to avoid global state pollution at startup
+      await loadSdk();
 
       const { redis, redisPublisher } = await initializeRedis({
         redisUrl,
