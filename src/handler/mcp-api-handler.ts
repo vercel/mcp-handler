@@ -277,11 +277,6 @@ export function initializeMcpApiHandler(
 
   let servers: McpServer[] = [];
 
-  let statelessServer: McpServer;
-  const statelessTransport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: sessionIdGenerator,
-  });
-  
   // Start periodic cleanup if not already running
   if (!cleanupInterval) {
     cleanupInterval = setInterval(() => {
@@ -363,11 +358,14 @@ export function initializeMcpApiHandler(
           config.onEvent
         );
 
-        if (!statelessServer) {
-          statelessServer = new McpServer(serverInfo, mcpServerOptions);
-          await initializeServer(statelessServer);
-          await statelessServer.connect(statelessTransport);
-        }
+        // CVE-2026-25536: SDK >=1.26.0 requires a fresh transport+server per
+        // request in stateless mode to prevent cross-client data leaks.
+        const statelessTransport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: sessionIdGenerator,
+        });
+        const statelessServer = new McpServer(serverInfo, mcpServerOptions);
+        await initializeServer(statelessServer);
+        await statelessServer.connect(statelessTransport);
 
         // Parse the request body
         let bodyContent: BodyType;
