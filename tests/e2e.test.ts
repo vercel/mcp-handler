@@ -310,6 +310,47 @@ describe("e2e", () => {
     );
   });
 
+  // Regression test for CVE-2026-25536: the handler must create a fresh
+  // transport per request. Without the fix, the second client's initialize
+  // fails because the SDK rejects reuse of a stateless transport.
+  it("should handle multiple independent clients sequentially", async () => {
+    // First client — connects and calls a tool
+    const transport1 = new StreamableHTTPClientTransport(
+      new URL(`${endpoint}/mcp`)
+    );
+    const client1 = new Client(
+      { name: "client-1", version: "1.0.0" },
+      { capabilities: {} }
+    );
+    await client1.connect(transport1);
+    const result1 = await client1.callTool(
+      { name: "echo", arguments: { message: "from client 1" } },
+      undefined,
+      {}
+    );
+    expect((result1.content as any)[0].text).toEqual(
+      "Tool echo: from client 1"
+    );
+
+    // Second client — must also succeed against the same server
+    const transport2 = new StreamableHTTPClientTransport(
+      new URL(`${endpoint}/mcp`)
+    );
+    const client2 = new Client(
+      { name: "client-2", version: "1.0.0" },
+      { capabilities: {} }
+    );
+    await client2.connect(transport2);
+    const result2 = await client2.callTool(
+      { name: "echo", arguments: { message: "from client 2" } },
+      undefined,
+      {}
+    );
+    expect((result2.content as any)[0].text).toEqual(
+      "Tool echo: from client 2"
+    );
+  });
+
   it("should return an invalid token error when verifyToken fails", async () => {
     const authenticatedTransport = new StreamableHTTPClientTransport(
       new URL(`${endpoint}/mcp`),
