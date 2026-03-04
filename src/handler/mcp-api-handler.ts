@@ -1,5 +1,5 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import {
   type IncomingHttpHeaders,
   IncomingMessage,
@@ -8,7 +8,7 @@ import {
 import { createClient } from "redis";
 import { Socket } from "node:net";
 import { Readable } from "node:stream";
-import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
+import type { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { BodyType } from "./server-response-adapter";
 import assert from "node:assert";
 import type {
@@ -18,6 +18,36 @@ import { EventEmittingResponse } from "../lib/event-emitter.js";
 import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types";
 import { getAuthContext } from "../auth/auth-context";
 import { ServerOptions } from ".";
+
+// Lazy-loaded SDK modules. The @modelcontextprotocol/sdk has transitive
+// dependencies (via undici) that replace globalThis.Response at import
+// time. Eagerly importing the SDK at the module level causes Next.js
+// route handlers to fail the `instanceof Response` check with
+// "No response is returned from route handler" errors.
+// See: https://github.com/vercel/mcp-handler/issues/140
+let McpServerClass: typeof McpServer;
+let SSEServerTransportClass: typeof SSEServerTransport;
+let WebStandardStreamableHTTPServerTransportClass: typeof WebStandardStreamableHTTPServerTransport;
+
+async function loadSdk() {
+  if (McpServerClass) return;
+
+  const OriginalResponse = globalThis.Response;
+
+  const [mcpMod, sseMod, httpMod] = await Promise.all([
+    import("@modelcontextprotocol/sdk/server/mcp.js"),
+    import("@modelcontextprotocol/sdk/server/sse.js"),
+    import("@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js"),
+  ]);
+
+  // Restore the original Response so that other route handlers in the
+  // same process continue to pass Next.js's instanceof check.
+  globalThis.Response = OriginalResponse;
+
+  McpServerClass = mcpMod.McpServer;
+  SSEServerTransportClass = sseMod.SSEServerTransport;
+  WebStandardStreamableHTTPServerTransportClass = httpMod.WebStandardStreamableHTTPServerTransport;
+}
 
 interface SerializedRequest {
   requestId: string;
@@ -275,13 +305,13 @@ export function initializeMcpApiHandler(
 
   // Note: In SDK 1.26.0+, stateless transports cannot be reused across requests.
   // We create a fresh transport and server per POST request.
-  
+
   // Start periodic cleanup if not already running
   if (!cleanupInterval) {
     cleanupInterval = setInterval(() => {
       const now = Date.now();
       const staleThreshold = 5 * 60 * 1000; // 5 minutes
-      
+
       servers = servers.filter(server => {
         const metadata = serverMetadata.get(server);
         if (!metadata) {
@@ -296,7 +326,7 @@ export function initializeMcpApiHandler(
           }
           return false;
         }
-        
+
         const age = now - metadata.createdAt.getTime();
         if (age > staleThreshold) {
           logger.log(`Removing stale server (session ${metadata.sessionId}, age: ${age}ms)`);
@@ -313,13 +343,15 @@ export function initializeMcpApiHandler(
           serverMetadata.delete(server);
           return false;
         }
-        
+
         return true;
       });
     }, 30 * 1000); // Run every 30 seconds
   }
 
   return async function mcpApiHandler(req: Request, res: ServerResponse) {
+    await loadSdk();
+
     const url = new URL(req.url || "", "https://example.com");
     if (url.pathname === streamableHttpEndpoint) {
       if (req.method === "GET") {
@@ -369,10 +401,10 @@ export function initializeMcpApiHandler(
         // In SDK 1.26.0+, stateless transports cannot be reused across requests.
         // Create a fresh transport and server per POST request and use the
         // WebStandard transport directly since we already have a Web Request.
-        const transport = new WebStandardStreamableHTTPServerTransport({
+        const transport = new WebStandardStreamableHTTPServerTransportClass({
           sessionIdGenerator: sessionIdGenerator,
         });
-        const server = new McpServer(serverInfo, mcpServerOptions);
+        const server = new McpServerClass(serverInfo, mcpServerOptions);
         await initializeServer(server);
         await server.connect(transport);
 
@@ -472,7 +504,7 @@ export function initializeMcpApiHandler(
       });
       logger.log("Got new SSE connection");
       assert(sseMessageEndpoint, "sseMessageEndpoint is required");
-      const transport = new SSEServerTransport(sseMessageEndpoint, res);
+      const transport = new SSEServerTransportClass(sseMessageEndpoint, res);
       const sessionId = transport.sessionId;
 
       const eventRes = new EventEmittingResponse(
@@ -488,8 +520,8 @@ export function initializeMcpApiHandler(
           undefined,
       });
 
-      const server = new McpServer(serverInfo, serverOptions);
-      
+      const server = new McpServerClass(serverInfo, serverOptions);
+
       // Track cleanup state to prevent double cleanup
       let isCleanedUp = false;
       let interval: NodeJS.Timeout | null = null;
@@ -497,14 +529,14 @@ export function initializeMcpApiHandler(
       let abortHandler: (() => void) | null = null;
       let handleMessage: ((message: string) => Promise<void>) | null = null;
       let logs: { type: LogLevel; messages: string[]; }[] = [];
-      
+
       // Comprehensive cleanup function
       const cleanup = async (reason: string) => {
         if (isCleanedUp) return;
         isCleanedUp = true;
-        
+
         logger.log(`Cleaning up SSE connection: ${reason}`);
-        
+
         // Clear timers
         if (timeout) {
           clearTimeout(timeout);
@@ -514,13 +546,13 @@ export function initializeMcpApiHandler(
           clearInterval(interval);
           interval = null;
         }
-        
+
         // Remove abort event listener
         if (abortHandler) {
           req.signal.removeEventListener("abort", abortHandler);
           abortHandler = null;
         }
-        
+
         // Unsubscribe from Redis
         if (handleMessage) {
           try {
@@ -530,7 +562,7 @@ export function initializeMcpApiHandler(
             logger.error("Error unsubscribing from Redis:", error);
           }
         }
-        
+
         // Close server and transport
         try {
           if (server?.server) {
@@ -540,30 +572,30 @@ export function initializeMcpApiHandler(
             await transport.close();
           }
         } catch (error) {
-          logger.error("Error closing server/transport:", error);
+          logger.error("Error closing stale server:", error);
         }
-        
+
         // Remove server from array and WeakMap
         servers = servers.filter((s) => s !== server);
         serverMetadata.delete(server);
-        
+
         // End session event
         eventRes.endSession("SSE");
-        
+
         // Clear logs array to free memory
         logs = [];
-        
+
         // End response if not already ended
         if (!res.headersSent) {
           res.statusCode = 200;
           res.end();
         }
       };
-      
+
       try {
         await initializeServer(server);
         servers.push(server);
-        
+
         // Store metadata in WeakMap
         serverMetadata.set(server, {
           sessionId,
@@ -686,12 +718,12 @@ export function initializeMcpApiHandler(
 
         abortHandler = () => resolveTimeout("client hang up");
         req.signal.addEventListener("abort", abortHandler);
-        
+
         // Handle response close event
         res.on("close", () => {
           cleanup("response closed");
         });
-        
+
         // Handle response error event
         res.on("error", (error) => {
           logger.error("Response error:", error);
@@ -748,24 +780,24 @@ export function initializeMcpApiHandler(
       let timeout: NodeJS.Timeout | null = null;
       let hasResponded = false;
       let isCleanedUp = false;
-      
+
       // Cleanup function to ensure all resources are freed
       const cleanup = async () => {
         if (isCleanedUp) return;
         isCleanedUp = true;
-        
+
         if (timeout) {
           clearTimeout(timeout);
           timeout = null;
         }
-        
+
         try {
           await redis.unsubscribe(`responses:${sessionId}:${requestId}`);
         } catch (error) {
           logger.error("Error unsubscribing from Redis response channel:", error);
         }
       };
-      
+
       // Safe response handler to prevent double res.end()
       const sendResponse = async (status: number, body: string) => {
         if (!hasResponded) {
@@ -775,7 +807,7 @@ export function initializeMcpApiHandler(
           await cleanup();
         }
       };
-      
+
       // Response handler
       const handleResponse = async (message: string) => {
         try {
@@ -817,7 +849,7 @@ export function initializeMcpApiHandler(
             await cleanup();
           }
         });
-        
+
         // Handle response error event
         res.on("error", async (error) => {
           logger.error("Response error in message handler:", error);
@@ -892,9 +924,9 @@ function createFakeIncomingMessage(
   req.method = method;
   req.url = url;
   req.headers = headers;
-  req.rawHeaders = Object.entries(headers).flatMap(([key, value]) => 
-    Array.isArray(value) 
-      ? value.flatMap(v => [key, v]) 
+  req.rawHeaders = Object.entries(headers).flatMap(([key, value]) =>
+    Array.isArray(value)
+      ? value.flatMap(v => [key, v])
       : [key, value ?? ""]
   );
 
