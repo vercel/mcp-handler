@@ -9,6 +9,7 @@ import { createClient } from "redis";
 import { Socket } from "node:net";
 import { Readable } from "node:stream";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { BodyType } from "./server-response-adapter";
 import assert from "node:assert";
 import type {
@@ -277,10 +278,8 @@ export function initializeMcpApiHandler(
 
   let servers: McpServer[] = [];
 
-  let statelessServer: McpServer;
-  const statelessTransport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: sessionIdGenerator,
-  });
+  // Note: In SDK 1.26.0+, stateless transports cannot be reused across requests.
+  // We create a fresh transport and server per POST request.
   
   // Start periodic cleanup if not already running
   if (!cleanupInterval) {
@@ -363,12 +362,6 @@ export function initializeMcpApiHandler(
           config.onEvent
         );
 
-        if (!statelessServer) {
-          statelessServer = new McpServer(serverInfo, mcpServerOptions);
-          await initializeServer(statelessServer);
-          await statelessServer.connect(statelessTransport);
-        }
-
         // Parse the request body
         let bodyContent: BodyType;
         const contentType = req.headers.get("content-type") || "";
@@ -378,23 +371,47 @@ export function initializeMcpApiHandler(
           bodyContent = await req.text();
         }
 
-        const incomingRequest = createFakeIncomingMessage({
-          method: req.method,
-          url: req.url,
-          headers: Object.fromEntries(req.headers),
-          body: bodyContent,
-          auth: req.auth, // Use the auth info that should already be set by withMcpAuth
+        // In SDK 1.26.0+, stateless transports cannot be reused across requests.
+        // Create a fresh transport and server per POST request and use the
+        // WebStandard transport directly since we already have a Web Request.
+        const transport = new WebStandardStreamableHTTPServerTransport({
+          sessionIdGenerator: sessionIdGenerator,
         });
-
-        // Create a response that will emit events
-        const wrappedRes = new EventEmittingResponse(
-          incomingRequest,
-          config.onEvent
-        );
-        Object.assign(wrappedRes, res);
+        const server = new McpServer(serverInfo, mcpServerOptions);
+        await initializeServer(server);
+        await server.connect(transport);
 
         try {
-          await statelessTransport.handleRequest(incomingRequest, wrappedRes);
+          // Build a new Request with the already-parsed body so the transport
+          // doesn't try to consume the (already-read) body stream again.
+          const webReq = new Request(req.url, {
+            method: req.method,
+            headers: req.headers,
+            body: JSON.stringify(bodyContent),
+          });
+          // Propagate auth info for downstream tool handlers
+          (webReq as any).auth = req.auth;
+
+          const webResp = await transport.handleRequest(webReq, {
+            authInfo: req.auth,
+          });
+
+          // Write the response back through the ServerResponse adapter
+          res.writeHead(webResp.status, Object.fromEntries(webResp.headers));
+          if (webResp.body) {
+            const reader = webResp.body.getReader();
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                res.write(value);
+              }
+            } finally {
+              reader.releaseLock();
+            }
+          }
+          res.end();
+
           if (
             typeof bodyContent === "object" &&
             bodyContent &&

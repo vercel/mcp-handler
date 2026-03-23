@@ -158,7 +158,12 @@ describe("e2e", () => {
     expect((await client.listTools()).tools).toStrictEqual([
       {
         "description": "Echo a message",
+        "execution": {
+          "taskSupport": "forbidden",
+        },
         "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "additionalProperties": false,
           "properties": {
             "message": {
               "type": "string",
@@ -389,13 +394,19 @@ function nodeToWebHandler(
     const webResp = await handler(webReq);
 
     const responseHeaders = Object.fromEntries(webResp.headers);
-
     res.writeHead(webResp.status, webResp.statusText, responseHeaders);
 
     if (webResp.body) {
-      const arrayBuffer = await webResp.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      res.write(buffer);
+      const reader = webResp.body.getReader();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          res.write(Buffer.from(value));
+        }
+      } finally {
+        reader.releaseLock();
+      }
     }
     res.end();
   };

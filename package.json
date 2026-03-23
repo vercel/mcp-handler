@@ -69,7 +69,7 @@
     "zod": "^3.25.50"
   },
   "peerDependencies": {
-    "@modelcontextprotocol/sdk": "1.25.2",
+    "@modelcontextprotocol/sdk": "1.26.0",
     "next": ">=13.0.0"
   },
   "peerDependenciesMeta": {
