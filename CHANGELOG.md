@@ -1,5 +1,11 @@
 # mcp-handler
 
+## 1.1.0
+
+### Minor Changes
+
+- 7ac97dc: Require minimum of @modelcontextprotocol/sdk@1.26.0 which uses web streams
+
 ## 1.0.7
 
 ### Patch Changes
