@@ -8,17 +8,12 @@ import {
 import { createClient } from "redis";
 import { Socket } from "node:net";
 import { Readable } from "node:stream";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { BodyType } from "./server-response-adapter";
 import assert from "node:assert";
 import type {
   McpEvent,
-  McpErrorEvent,
-  McpSessionEvent,
-  McpRequestEvent,
 } from "../lib/log-helper";
-import { createEvent } from "../lib/log-helper";
 import { EventEmittingResponse } from "../lib/event-emitter.js";
 import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types";
 import { getAuthContext } from "../auth/auth-context";
