@@ -317,6 +317,7 @@ export function initializeMcpApiHandler(
         return true;
       });
     }, 30 * 1000); // Run every 30 seconds
+    cleanupInterval.unref();
   }
 
   return async function mcpApiHandler(req: Request, res: ServerResponse) {
@@ -672,6 +673,7 @@ export function initializeMcpApiHandler(
           }
           logs = [];
         }, 100);
+        interval.unref();
 
         await redis.subscribe(`requests:${sessionId}`, handleMessage);
         logger.log(`Subscribed to requests:${sessionId}`);
