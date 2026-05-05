@@ -63,6 +63,54 @@ interface Config {
 }
 ```
 
+## Progress Notifications
+
+Tool handlers receive the MCP request context as their second argument. Use `ctx.mcpReq._meta?.progressToken` to check whether the client requested progress updates, then send `notifications/progress` with `ctx.mcpReq.notify(...)`.
+
+```typescript
+// app/api/[transport]/route.ts
+import { createMcpHandler } from "mcp-handler";
+import { z } from "zod";
+
+const handler = createMcpHandler((server) => {
+  server.registerTool(
+    "long_task",
+    {
+      title: "Long Task",
+      description: "Run a multi-step task and report progress when requested.",
+      inputSchema: {
+        steps: z.number().int().min(1).max(10),
+      },
+    },
+    async ({ steps }, ctx) => {
+      const progressToken = ctx.mcpReq._meta?.progressToken;
+
+      for (let progress = 1; progress <= steps; progress++) {
+        if (progressToken !== undefined) {
+          await ctx.mcpReq.notify({
+            method: "notifications/progress",
+            params: {
+              progressToken,
+              progress,
+              total: steps,
+              message: `Completed step ${progress} of ${steps}`,
+            },
+          });
+        }
+      }
+
+      return {
+        content: [{ type: "text", text: "Task complete" }],
+      };
+    }
+  );
+});
+
+export { handler as GET, handler as POST };
+```
+
+Progress notifications are only associated with a request when the client includes a progress token in `_meta`. If no token is present, complete the tool normally without sending progress notifications.
+
 ## Nuxt Usage
 
 ```typescript
