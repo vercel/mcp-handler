@@ -124,9 +124,10 @@ export type Config = {
   disableSse?: boolean;
 
   /**
-   * sessionIdGenerator for the streamable HTTP transport
+   * sessionIdGenerator for the streamable HTTP transport.
+   * Return a session ID to enable stateful Streamable HTTP sessions.
    */
-  sessionIdGenerator?: undefined;
+  sessionIdGenerator?: () => string;
 };
 
 /**
