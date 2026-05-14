@@ -18,10 +18,14 @@ export type ServerOptions = McpServerOptions & {
   };
 };
 
+export type InitializeMcpServer =
+  | ((server: McpServer) => Promise<void>)
+  | ((server: McpServer) => void);
+
+export type { Config };
+
 export default function createMcpRouteHandler(
-  initializeServer:
-    | ((server: McpServer) => Promise<void>)
-    | ((server: McpServer) => void),
+  initializeServer: InitializeMcpServer,
   serverOptions?: ServerOptions,
   config?: Config
 ): (request: Request) => Promise<Response> {
