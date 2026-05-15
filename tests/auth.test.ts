@@ -47,9 +47,10 @@ describe("auth", () => {
     });
   });
 
-  describe("proxy header support", () => {
+  describe("proxy header support (trustProxy: true)", () => {
     const handler = protectedResourceHandler({
       authServerUrls: ["https://auth-server.com"],
+      trustProxy: true,
     });
 
     it("uses X-Forwarded-Host and X-Forwarded-Proto headers", async () => {
@@ -115,6 +116,35 @@ describe("auth", () => {
       const res = handler(req);
       const json = await res.json();
       expect(json.resource).toBe("https://direct-server.com");
+    });
+  });
+
+  describe("origin spoofing protection (default trustProxy=false)", () => {
+    const handler = protectedResourceHandler({
+      authServerUrls: ["https://auth-server.com"],
+    });
+
+    it("ignores attacker-supplied X-Forwarded-Host by default", async () => {
+      const req = new Request("https://real-server.com/.well-known/oauth-protected-resource", {
+        headers: {
+          "X-Forwarded-Host": "attacker.example",
+          "X-Forwarded-Proto": "https",
+        },
+      });
+      const res = handler(req);
+      const json = await res.json();
+      expect(json.resource).toBe("https://real-server.com");
+    });
+
+    it("ignores attacker-supplied Forwarded header by default", async () => {
+      const req = new Request("https://real-server.com/.well-known/oauth-protected-resource", {
+        headers: {
+          "Forwarded": "host=attacker.example;proto=https",
+        },
+      });
+      const res = handler(req);
+      const json = await res.json();
+      expect(json.resource).toBe("https://real-server.com");
     });
   });
 

@@ -20,17 +20,25 @@ const corsHeaders = {
  *                        These should match the "issuer" field in the authorization servers'
  *                        OAuth metadata (RFC 8414).
  * @param resourceUrl - Optional explicit resource URL override. When provided, this URL is
- *                      used instead of deriving it from the request. Use this when running
- *                      behind a proxy that doesn't set standard forwarding headers.
- *                      If not provided, the URL is automatically detected from proxy headers
- *                      (X-Forwarded-Host, X-Forwarded-Proto, Forwarded) or falls back to req.url.
+ *                      used instead of deriving it from the request. Strongly recommended
+ *                      in production to avoid relying on request-derived origins.
+ *                      If not provided, the URL is derived from `req.url` (and from proxy
+ *                      headers only when `trustProxy` is `true`).
+ * @param trustProxy - Whether to trust X-Forwarded-Host / X-Forwarded-Proto / Forwarded
+ *                     headers when deriving the resource URL. Defaults to `false`.
+ *                     Only set this to `true` when the request has demonstrably traversed
+ *                     a trusted reverse proxy that strips/overwrites these headers,
+ *                     otherwise clients can spoof the published `resource` identifier
+ *                     (CWE-918 / origin spoofing).
  */
 export function protectedResourceHandler({
     authServerUrls,
     resourceUrl: explicitResourceUrl,
+    trustProxy = false,
 }: {
     authServerUrls: string[];
     resourceUrl?: string;
+    trustProxy?: boolean;
 }) {
     return (req: Request) => {
         let resource: string;
@@ -39,8 +47,8 @@ export function protectedResourceHandler({
             // Use explicit override if provided
             resource = explicitResourceUrl;
         } else {
-            // Auto-detect from proxy headers or req.url
-            const publicUrl = getPublicUrl(req);
+            // Auto-detect from req.url (and proxy headers only if trustProxy is true)
+            const publicUrl = getPublicUrl(req, { trustProxy });
 
             publicUrl.pathname = publicUrl.pathname
               .replace(/^\/\.well-known\/[^\/]+/, "");
@@ -110,4 +118,3 @@ export function metadataCorsOptionsRequestHandler() {
         });
     };
 }
-

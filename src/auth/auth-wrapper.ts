@@ -24,24 +24,40 @@ export function withMcpAuth(
     resourceMetadataPath = "/.well-known/oauth-protected-resource",
     requiredScopes,
     resourceUrl,
+    trustProxy = false,
   }: {
     required?: boolean;
     resourceMetadataPath?: string;
     requiredScopes?: string[];
     /**
      * Explicit resource URL override. When provided, this URL is used as the
-     * origin for constructing the resource_metadata URL. Use this when running
-     * behind a proxy that doesn't set standard forwarding headers, or when you
-     * need to specify a specific public URL.
+     * origin for constructing the resource_metadata URL. Strongly recommended
+     * for production deployments — relying on request-derived origins lets
+     * clients influence the URL advertised in WWW-Authenticate responses
+     * unless the deployment is behind a proxy that sanitizes forwarding
+     * headers.
      *
-     * If not provided, the origin is automatically detected from proxy headers
-     * (X-Forwarded-Host, X-Forwarded-Proto, Forwarded) or falls back to req.url.
+     * If not provided, the origin is derived from `req.url` (and from proxy
+     * headers only when `trustProxy` is `true`).
      */
     resourceUrl?: string;
+    /**
+     * Whether to trust X-Forwarded-Host / X-Forwarded-Proto / Forwarded
+     * headers when deriving the origin used to build the
+     * `resource_metadata` URL in WWW-Authenticate responses. Defaults to
+     * `false`.
+     *
+     * Only set this to `true` when the request has demonstrably traversed
+     * a trusted reverse proxy that strips/overwrites these headers.
+     * Otherwise, an attacker can spoof the advertised metadata URL,
+     * potentially redirecting OAuth clients to attacker-controlled servers
+     * (CWE-918 / origin spoofing). Ignored when `resourceUrl` is set.
+     */
+    trustProxy?: boolean;
   } = {}
 ) {
   return async (req: Request) => {
-    const origin = resourceUrl ?? getPublicOrigin(req);
+    const origin = resourceUrl ?? getPublicOrigin(req, { trustProxy });
     const resourceMetadataUrl = `${origin}${resourceMetadataPath}`;
 
     const authHeader = req.headers.get("Authorization");
