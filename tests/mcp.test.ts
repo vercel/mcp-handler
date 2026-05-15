@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateEndpoints } from '../src/handler/mcp-api-handler';
+import { calculateEndpoints, normalizeEndpointPath } from '../src/handler/mcp-api-handler';
 
 describe('calculateEndpoints', () => {
   it('derives all endpoints from basePath', () => {
@@ -86,5 +86,16 @@ describe('calculateEndpoints', () => {
       sseEndpoint: '/explicit/sse',
       sseMessageEndpoint: '/explicit/message',
     });
+  });
+});
+
+describe('normalizeEndpointPath', () => {
+  it('removes trailing slashes from non-root paths', () => {
+    expect(normalizeEndpointPath('/mcp/')).toBe('/mcp');
+    expect(normalizeEndpointPath('/api/mcp//')).toBe('/api/mcp');
+  });
+
+  it('preserves root path', () => {
+    expect(normalizeEndpointPath('/')).toBe('/');
   });
 });

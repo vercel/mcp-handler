@@ -148,6 +148,11 @@ function deriveEndpointsFromBasePath(basePath: string): {
     sseMessageEndpoint: `${normalizedBasePath}/message`,
   };
 }
+
+export function normalizeEndpointPath(pathname: string): string {
+  return pathname === "/" ? pathname : pathname.replace(/\/+$/, "");
+}
+
 /**
  * Calculates the endpoints for the MCP handler.
  * @param config - The configuration for the MCP handler.
@@ -321,7 +326,8 @@ export function initializeMcpApiHandler(
 
   return async function mcpApiHandler(req: Request, res: ServerResponse) {
     const url = new URL(req.url || "", "https://example.com");
-    if (url.pathname === streamableHttpEndpoint) {
+    const pathname = normalizeEndpointPath(url.pathname);
+    if (pathname === streamableHttpEndpoint) {
       if (req.method === "GET") {
         logger.log("Received GET MCP request");
         res.writeHead(405).end(
@@ -432,7 +438,7 @@ export function initializeMcpApiHandler(
           throw error;
         }
       }
-    } else if (url.pathname === sseEndpoint) {
+    } else if (pathname === sseEndpoint) {
       if (disableSse) {
         res.statusCode = 404;
         res.end("Not found");
@@ -707,7 +713,7 @@ export function initializeMcpApiHandler(
         await cleanup("error during setup");
         throw error;
       }
-    } else if (url.pathname === sseMessageEndpoint) {
+    } else if (pathname === sseMessageEndpoint) {
       if (disableSse) {
         res.statusCode = 404;
         res.end("Not found");
