@@ -76,7 +76,13 @@ export function createServerResponseAdapter(
         bufferedData.push(data);
         return true;
       }
-      controller.enqueue(data);
+      try {
+        controller.enqueue(data);
+      } catch {
+        // The stream may already be closed/errored if the client aborted the
+        // request before the response finished. Dropping the chunk is correct
+        // here; there is no socket left to write to.
+      }
       return true;
     };
 
@@ -126,7 +132,19 @@ export function createServerResponseAdapter(
       eventEmitter.emit('close');
     });
 
-    void fn(fakeServerResponse as ServerResponse);
+    // The handler runs fire-and-forget. If the client aborts before the
+    // response is fully sent, the underlying request rejects with
+    // "Error: aborted"; without this catch that rejection surfaces as a
+    // process-level unhandled rejection and crashes the server (issue #128).
+    Promise.resolve(fn(fakeServerResponse as ServerResponse)).catch(err => {
+      if (signal.aborted) {
+        // Expected when the client went away before we finished; nothing to do.
+        return;
+      }
+      // Otherwise this is a real handler error. Surface it without crashing the
+      // process so the abort guard above does not mask genuine failures.
+      console.error('mcp-handler: request handler error', err);
+    });
 
     void (async () => {
       const head = await writeHeadPromise;
@@ -135,11 +153,16 @@ export function createServerResponseAdapter(
         new ReadableStream({
           start(c) {
             controller = c;
-            for (const chunk of bufferedData) {
-              controller.enqueue(chunk);
-            }
-            if (shouldClose) {
-              controller.close();
+            try {
+              for (const chunk of bufferedData) {
+                controller.enqueue(chunk);
+              }
+              if (shouldClose) {
+                controller.close();
+              }
+            } catch {
+              // The client may have already aborted, in which case the stream
+              // is closed/errored. Flushing buffered data is then a no-op.
             }
           },
         }),
@@ -150,6 +173,13 @@ export function createServerResponseAdapter(
       );
 
       resolve(response);
-    })();
+    })().catch(err => {
+      // Building the Response should not reject, but guard the fire-and-forget
+      // IIFE so an unexpected rejection (e.g. during/after abort) cannot become
+      // an unhandled rejection that crashes the server.
+      if (!signal.aborted) {
+        console.error('mcp-handler: response builder error', err);
+      }
+    });
   });
 }
