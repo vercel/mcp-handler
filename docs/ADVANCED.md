@@ -16,35 +16,24 @@ const handler = async (
 ) => {
   const { p } = await params;
 
-  return createMcpHandler(
-    (server) => {
-      server.registerTool(
-        "roll_dice",
-        {
-          title: "Roll Dice",
-          description: "Roll a dice with a specified number of sides.",
-          inputSchema: z.object({ sides: z.number().int().min(2) }),
-        },
-        async ({ sides }) => {
-          const value = 1 + Math.floor(Math.random() * sides);
-          return {
-            content: [{ type: "text", text: `🎲 You rolled a ${value}!` }],
-          };
-        },
-      );
-    },
-    {
-      capabilities: {
-        tools: {
-          roll_dice: { description: "Roll a dice" },
-        },
+  return createMcpHandler((server) => {
+    server.registerTool(
+      "roll_dice",
+      {
+        title: "Roll Dice",
+        description: `Roll a dice for tenant ${p}.`,
+        inputSchema: z.object({ sides: z.number().int().min(2) }),
       },
-    },
-    {
-      basePath: `/dynamic/${p}`,
-      verboseLogs: true,
-    },
-  )(req);
+      async ({ sides }) => {
+        const value = 1 + Math.floor(Math.random() * sides);
+        return {
+          content: [
+            { type: "text", text: `🎲 Tenant ${p} rolled a ${value}!` },
+          ],
+        };
+      },
+    );
+  })(req);
 };
 
 export { handler as GET, handler as POST };
@@ -54,10 +43,8 @@ export { handler as GET, handler as POST };
 
 ```typescript
 interface Config {
-  basePath?: string; // Base path for MCP endpoints
   verboseLogs?: boolean; // Enable debug logging
   onEvent?: (event: McpEvent) => void; // Analytics/debugging callback
-  disableSse?: boolean; // Respond 404 instead of 410 on removed SSE endpoints
 }
 ```
 
@@ -84,7 +71,7 @@ const handler = createMcpHandler((server) => {
       };
     },
   );
-}, {});
+});
 
 export default fromWebHandler(handler);
 ```

@@ -1,4 +1,4 @@
-// Re-export the Next.js adapter
+// Re-export the framework-agnostic HTTP adapter
 export { default as createMcpHandler } from "./handler";
 
 /**

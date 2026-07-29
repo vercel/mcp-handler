@@ -5,43 +5,40 @@ The MCP adapter supports the [MCP Authorization Specification](https://modelcont
 ## Basic Usage
 
 ```typescript
-// app/api/[transport]/route.ts
+// app/api/mcp/route.ts
 import type { AuthInfo } from "@modelcontextprotocol/server";
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { z } from "zod";
 
-const handler = createMcpHandler(
-  (server) => {
-    server.registerTool(
-      "echo",
-      {
-        title: "Echo",
-        description: "Echo a message",
-        inputSchema: z.object({ message: z.string() }),
-      },
-      async ({ message }, ctx) => {
-        // Access auth info via ctx.http?.authInfo
-        const authInfo = ctx.http?.authInfo;
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Echo: ${message}${
-                authInfo?.token ? ` for user ${authInfo.clientId}` : ""
-              }`,
-            },
-          ],
-        };
-      }
-    );
-  },
-  {}
-);
+const handler = createMcpHandler((server) => {
+  server.registerTool(
+    "echo",
+    {
+      title: "Echo",
+      description: "Echo a message",
+      inputSchema: z.object({ message: z.string() }),
+    },
+    async ({ message }, ctx) => {
+      // Access auth info via ctx.http?.authInfo
+      const authInfo = ctx.http?.authInfo;
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Echo: ${message}${
+              authInfo?.token ? ` for user ${authInfo.clientId}` : ""
+            }`,
+          },
+        ],
+      };
+    },
+  );
+}, {});
 
 // Token verification function
 const verifyToken = async (
   req: Request,
-  bearerToken?: string
+  bearerToken?: string,
 ): Promise<AuthInfo | undefined> => {
   if (!bearerToken) return undefined;
 
@@ -87,6 +84,7 @@ export { handler as GET, corsHandler as OPTIONS };
 ```
 
 This endpoint provides:
+
 - `resource`: The URL of your MCP server
 - `authorization_servers`: Array of OAuth authorization server Issuer URLs
 

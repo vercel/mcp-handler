@@ -1,4 +1,4 @@
-import {describe, it, expect, beforeEach, afterEach, vi, Mock} from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi, Mock } from "vitest";
 import { z } from "zod";
 import {
   createServer,
@@ -39,7 +39,7 @@ describe("e2e", () => {
                 },
               ],
             };
-          }
+          },
         );
 
         server.registerPrompt(
@@ -62,7 +62,7 @@ describe("e2e", () => {
                 },
               ],
             };
-          }
+          },
         );
 
         server.registerResource(
@@ -82,7 +82,7 @@ describe("e2e", () => {
                 },
               ],
             };
-          }
+          },
         );
       },
       {
@@ -100,9 +100,8 @@ describe("e2e", () => {
         },
       },
       {
-        basePath: "",
         verboseLogs: true,
-      }
+      },
     );
 
     verifyTokenMock = vi.fn((req) => {
@@ -116,7 +115,7 @@ describe("e2e", () => {
         });
       }
       return undefined;
-    })
+    });
 
     const mcpHandler = withMcpAuth(_mcpHandler, verifyTokenMock);
 
@@ -127,11 +126,9 @@ describe("e2e", () => {
       });
     });
     const port = (server.address() as AddressInfo | null)?.port;
-    endpoint = `http://localhost:${port}`;
+    endpoint = `http://localhost:${port}/custom/mcp-endpoint`;
 
-    const transport = new StreamableHTTPClientTransport(
-      new URL(`${endpoint}/mcp`)
-    );
+    const transport = new StreamableHTTPClientTransport(new URL(endpoint));
     client = new Client(
       {
         name: "example-client",
@@ -139,7 +136,7 @@ describe("e2e", () => {
       },
       {
         capabilities: {},
-      }
+      },
     );
     await client.connect(transport);
   });
@@ -171,23 +168,23 @@ describe("e2e", () => {
     });
     expect((await client.listPrompts()).prompts).toStrictEqual([
       {
-        "arguments": [
+        arguments: [
           {
-            "description": "The name of the person to greet",
-            "name": "name",
-            "required": true,
+            description: "The name of the person to greet",
+            name: "name",
+            required: true,
           },
         ],
-        "description": "Generate a greeting message",
-        "name": "greeting",
+        description: "Generate a greeting message",
+        name: "greeting",
       },
     ]);
     expect((await client.listResources()).resources).toStrictEqual([
       {
-        "description": "A test resource",
-        "mimeType": "text/plain",
-        "name": "test-resource",
-        "uri": "test://example/resource",
+        description: "A test resource",
+        mimeType: "text/plain",
+        name: "test-resource",
+        uri: "test://example/resource",
       },
     ]);
   });
@@ -233,7 +230,7 @@ describe("e2e", () => {
     expect(resources.length).toEqual(1);
 
     const testResource = resources.find(
-      (resource) => resource.name === "test-resource"
+      (resource) => resource.name === "test-resource",
     );
     expect(testResource).toBeDefined();
     expect(testResource?.uri).toEqual("test://example/resource");
@@ -249,36 +246,32 @@ describe("e2e", () => {
     expect(result.contents[0].uri).toEqual("test://example/resource");
     expect("text" in result.contents[0]).toBe(true);
     if ("text" in result.contents[0]) {
-      expect(result.contents[0].text).toEqual(
-        "This is test resource content"
-      );
+      expect(result.contents[0].text).toEqual("This is test resource content");
     }
   });
 
   it("should call a tool", async () => {
-    const result = await client.callTool(
-      {
-        name: "echo",
-        arguments: {
-          message: "Are you there?",
-        },
-      }
-    );
+    const result = await client.callTool({
+      name: "echo",
+      arguments: {
+        message: "Are you there?",
+      },
+    });
     expect((result.content as any)[0].text).toEqual(
-      "Tool echo: Are you there?"
+      "Tool echo: Are you there?",
     );
   });
 
   it("should call a tool with auth", async () => {
     const authenticatedTransport = new StreamableHTTPClientTransport(
-      new URL(`${endpoint}/mcp`),
+      new URL(endpoint),
       {
         requestInit: {
           headers: {
             Authorization: `Bearer ACCESS_TOKEN`,
           },
         },
-      }
+      },
     );
     const authenticatedClient = new Client(
       {
@@ -287,25 +280,23 @@ describe("e2e", () => {
       },
       {
         capabilities: {},
-      }
+      },
     );
     await authenticatedClient.connect(authenticatedTransport);
-    const result = await authenticatedClient.callTool(
-      {
-        name: "echo",
-        arguments: {
-          message: "Are you there?",
-        },
-      }
-    );
+    const result = await authenticatedClient.callTool({
+      name: "echo",
+      arguments: {
+        message: "Are you there?",
+      },
+    });
     expect((result.content as any)[0].text).toEqual(
-      "Tool echo: Are you there? for ACCESS_TOKEN"
+      "Tool echo: Are you there? for ACCESS_TOKEN",
     );
   });
 
   it("should serve the 2026-07-28 protocol to a pinned modern client", async () => {
     const modernTransport = new StreamableHTTPClientTransport(
-      new URL(`${endpoint}/mcp`)
+      new URL(endpoint),
     );
     const modernClient = new Client(
       {
@@ -315,7 +306,7 @@ describe("e2e", () => {
       {
         capabilities: {},
         versionNegotiation: { mode: { pin: "2026-07-28" } },
-      }
+      },
     );
     await modernClient.connect(modernTransport);
 
@@ -330,20 +321,20 @@ describe("e2e", () => {
       },
     });
     expect((result.content as any)[0].text).toEqual(
-      "Tool echo: Hello from the future"
+      "Tool echo: Hello from the future",
     );
   });
 
   it("should pass auth info through on the modern protocol path", async () => {
     const modernTransport = new StreamableHTTPClientTransport(
-      new URL(`${endpoint}/mcp`),
+      new URL(endpoint),
       {
         requestInit: {
           headers: {
             Authorization: `Bearer ACCESS_TOKEN`,
           },
         },
-      }
+      },
     );
     const modernClient = new Client(
       {
@@ -353,7 +344,7 @@ describe("e2e", () => {
       {
         capabilities: {},
         versionNegotiation: { mode: { pin: "2026-07-28" } },
-      }
+      },
     );
     await modernClient.connect(modernTransport);
     const result = await modernClient.callTool({
@@ -363,36 +354,20 @@ describe("e2e", () => {
       },
     });
     expect((result.content as any)[0].text).toEqual(
-      "Tool echo: Are you there? for ACCESS_TOKEN"
+      "Tool echo: Are you there? for ACCESS_TOKEN",
     );
-  });
-
-  it("should answer 410 Gone on the removed SSE transport endpoints", async () => {
-    const sseRes = await fetch(`${endpoint}/sse`, {
-      headers: { Accept: "text/event-stream" },
-    });
-    expect(sseRes.status).toEqual(410);
-    const body = await sseRes.json();
-    expect(body.error.message).toContain("no longer supported");
-
-    const messageRes = await fetch(`${endpoint}/message?sessionId=foo`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", method: "ping", id: 1 }),
-    });
-    expect(messageRes.status).toEqual(410);
   });
 
   it("should return an invalid token error when verifyToken fails", async () => {
     const authenticatedTransport = new StreamableHTTPClientTransport(
-      new URL(`${endpoint}/mcp`),
+      new URL(endpoint),
       {
         requestInit: {
           headers: {
             Authorization: `Bearer ACCESS_TOKEN`,
           },
         },
-      }
+      },
     );
     const authenticatedClient = new Client(
       {
@@ -401,18 +376,20 @@ describe("e2e", () => {
       },
       {
         capabilities: {},
-      }
+      },
     );
     verifyTokenMock.mockImplementation(() => {
-      throw new Error('JWT signature failed, or something')
-    })
+      throw new Error("JWT signature failed, or something");
+    });
 
-    expect(() => authenticatedClient.connect(authenticatedTransport)).rejects.toThrow('Invalid token')
+    await expect(
+      authenticatedClient.connect(authenticatedTransport),
+    ).rejects.toThrow("Invalid token");
   });
 });
 
 function nodeToWebHandler(
-  handler: (req: Request) => Promise<Response>
+  handler: (req: Request) => Promise<Response>,
 ): (req: IncomingMessage, res: ServerResponse) => void {
   return async (req, res) => {
     const method = (req.method || "GET").toUpperCase();
@@ -429,8 +406,8 @@ function nodeToWebHandler(
               resolve(
                 buf.buffer.slice(
                   buf.byteOffset,
-                  buf.byteOffset + buf.byteLength
-                )
+                  buf.byteOffset + buf.byteLength,
+                ),
               );
             });
             req.on("error", () => {

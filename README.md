@@ -31,31 +31,24 @@ Frameworks based on Node.js `IncomingMessage` and `ServerResponse`, such as Expr
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 
-const handler = createMcpHandler(
-  (server) => {
-    server.registerTool(
-      "roll_dice",
-      {
-        title: "Roll Dice",
-        description: "Roll a dice with a specified number of sides.",
-        inputSchema: z.object({
-          sides: z.number().int().min(2),
-        }),
-      },
-      async ({ sides }) => {
-        const value = 1 + Math.floor(Math.random() * sides);
-        return {
-          content: [{ type: "text", text: `🎲 You rolled a ${value}!` }],
-        };
-      },
-    );
-  },
-  {},
-  {
-    basePath: "/api", // serves this handler at /api/mcp
-    verboseLogs: true,
-  },
-);
+const handler = createMcpHandler((server) => {
+  server.registerTool(
+    "roll_dice",
+    {
+      title: "Roll Dice",
+      description: "Roll a dice with a specified number of sides.",
+      inputSchema: z.object({
+        sides: z.number().int().min(2),
+      }),
+    },
+    async ({ sides }) => {
+      const value = 1 + Math.floor(Math.random() * sides);
+      return {
+        content: [{ type: "text", text: `🎲 You rolled a ${value}!` }],
+      };
+    },
+  );
+});
 
 export { handler as GET, handler as POST };
 ```
@@ -87,7 +80,7 @@ For stdio-only clients, use [mcp-remote](https://www.npmjs.com/package/mcp-remot
 
 - **2026-07-28** (current): served natively — stateless, no sessions, per-request `_meta` envelope, `server/discover`.
 - **2025-era Streamable HTTP**: served via the SDK's stateless legacy fallback from the same handler. GET/DELETE session operations answer `405` (serving is stateless).
-- **HTTP+SSE transport (2024-11-05)**: removed in 2.x. The static quick-start route does not mount `/sse` or `/message`, so those paths return `404 Not Found`. If a dynamic route forwards them to `mcp-handler`, they answer `410 Gone`. Redis is no longer needed or used.
+- **HTTP+SSE transport (2024-11-05)**: removed in 2.x. Mount only the Streamable HTTP handler; unmounted `/sse` and `/message` paths are handled by your framework. Redis is no longer needed or used.
 
 ### Authorization (CIMD era)
 
@@ -104,7 +97,7 @@ See [Authorization](docs/AUTHORIZATION.md) for wiring details.
 - `inputSchema`/`argsSchema` take a full Standard Schema (e.g. `z.object({ ... })`) instead of a raw zod shape.
 - Variadic `server.tool(...)` / `.prompt(...)` / `.resource(...)` are removed — use `registerTool` / `registerPrompt` / `registerResource`.
 - In handler callbacks, `extra.authInfo` is now `ctx.http?.authInfo`.
-- Config options `redisUrl`, `maxDuration`, `sseEndpoint`, `sseMessageEndpoint`, and `sessionIdGenerator` are deprecated no-ops.
+- Route and transport config options from 1.x (`basePath`, `streamableHttpEndpoint`, `sseEndpoint`, `sseMessageEndpoint`, `disableSse`, `redisUrl`, `maxDuration`, and `sessionIdGenerator`) are ignored compatibility shims. Mount the handler at the desired route instead.
 
 ## Documentation
 

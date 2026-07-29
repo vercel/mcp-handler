@@ -22,11 +22,7 @@ For clients that only support stdio, use [mcp-remote](https://www.npmjs.com/pack
 {
   "remote-example": {
     "command": "npx",
-    "args": [
-      "-y",
-      "mcp-remote",
-      "http://localhost:3000/api/mcp"
-    ]
+    "args": ["-y", "mcp-remote", "http://localhost:3000/api/mcp"]
   }
 }
 ```
@@ -36,6 +32,7 @@ For clients that only support stdio, use [mcp-remote](https://www.npmjs.com/pack
 [Official Docs](https://modelcontextprotocol.io/quickstart/user)
 
 Edit the configuration file:
+
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
@@ -45,11 +42,7 @@ If the file doesn't exist, enable it under Settings > Developer.
 {
   "remote-example": {
     "command": "npx",
-    "args": [
-      "-y",
-      "mcp-remote",
-      "http://localhost:3000/api/mcp"
-    ]
+    "args": ["-y", "mcp-remote", "http://localhost:3000/api/mcp"]
   }
 }
 ```
@@ -82,7 +75,7 @@ import {
 
 const client = new Client({ name: "my-app", version: "1.0.0" });
 await client.connect(
-  new StreamableHTTPClientTransport(new URL("https://example.com/api/mcp/mcp"))
+  new StreamableHTTPClientTransport(new URL("https://example.com/api/mcp")),
 );
 
 const result = await client.callTool({

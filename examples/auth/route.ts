@@ -1,43 +1,32 @@
 import type { AuthInfo } from "@modelcontextprotocol/server";
-import {
-  createMcpHandler,
-  withMcpAuth,
-} from "mcp-handler";
+import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { z } from "zod";
 
 // Define the handler with proper parameter validation
-const handler = createMcpHandler(
-  (server) => {
-    server.registerTool(
-      "echo",
-      {
-        description: "Echo a message back with authentication info",
-        inputSchema: z.object({
-          message: z.string().describe("The message to echo back"),
-        }),
-      },
-      async ({ message }, ctx) => {
-        const authInfo = ctx.http?.authInfo;
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Echo: ${message}${
-                authInfo?.token ? ` (from ${authInfo.clientId})` : ""
-              }`,
-            },
-          ],
-        };
-      }
-    );
-  },
-  // Server options
-  {},
-  // Route configuration
-  {
-    basePath: "/api/mcp",
-  }
-);
+const handler = createMcpHandler((server) => {
+  server.registerTool(
+    "echo",
+    {
+      description: "Echo a message back with authentication info",
+      inputSchema: z.object({
+        message: z.string().describe("The message to echo back"),
+      }),
+    },
+    async ({ message }, ctx) => {
+      const authInfo = ctx.http?.authInfo;
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Echo: ${message}${
+              authInfo?.token ? ` (from ${authInfo.clientId})` : ""
+            }`,
+          },
+        ],
+      };
+    },
+  );
+});
 
 /**
  * Verify the bearer token and return auth information
@@ -45,7 +34,7 @@ const handler = createMcpHandler(
  */
 const verifyToken = async (
   req: Request,
-  bearerToken?: string
+  bearerToken?: string,
 ): Promise<AuthInfo | undefined> => {
   if (!bearerToken) return undefined;
 
