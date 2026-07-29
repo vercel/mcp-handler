@@ -27,6 +27,21 @@ jobs:
         with:
           token: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
 
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+
+      - name: Install npm with trusted publishing support
+        run: npm install --global npm@11
+
+      - name: Verify publishing runtime
+        run: |
+          node --version
+          npm --version
+
       - uses: pnpm/action-setup@v4
         name: Install pnpm
         id: pnpm-setup
@@ -48,4 +63,3 @@ jobs:
           commitMode: github-api
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}

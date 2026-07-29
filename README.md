@@ -7,7 +7,7 @@ Built on MCP SDK v2, serving the **2026-07-28** MCP specification (stateless pro
 ## Installation
 
 ```bash
-npm install mcp-handler @modelcontextprotocol/server zod
+npm install mcp-handler@^2 @modelcontextprotocol/server@^2 zod@^4
 ```
 
 > **Note**: `mcp-handler` 2.x requires the MCP SDK v2 packages (`@modelcontextprotocol/server` ^2.0.0), zod ^4.2.0, and Node.js 20+. If you're on `@modelcontextprotocol/sdk` 1.x, use `mcp-handler` 1.x.
