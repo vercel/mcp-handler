@@ -1,8 +1,8 @@
 # mcp-handler
 
-A Vercel adapter for the Model Context Protocol (MCP), enabling real-time communication between your applications and AI models. Supports Next.js and Nuxt.
+`mcp-handler` is a framework-agnostic HTTP adapter for hosting Model Context Protocol (MCP) servers in JavaScript and TypeScript applications. It turns an MCP server definition into a Web-standard `(Request) => Promise<Response>` handler that can be mounted in Next.js, Nuxt/Nitro, SvelteKit, Hono, and other Fetch-compatible frameworks.
 
-Built on MCP SDK v2, serving the **2026-07-28** MCP specification (stateless protocol, `server/discover`, CIMD-era authorization) while transparently falling back to stateless Streamable HTTP for 2025-era clients — one handler, both protocol generations.
+Built on MCP SDK v2, it serves the **2026-07-28** MCP specification natively while transparently falling back to stateless Streamable HTTP for 2025-era clients — one handler, both protocol generations.
 
 ## Installation
 
@@ -11,6 +11,18 @@ npm install mcp-handler@^2 @modelcontextprotocol/server@^2 zod@^4
 ```
 
 > **Note**: `mcp-handler` 2.x requires the MCP SDK v2 packages (`@modelcontextprotocol/server` ^2.0.0), zod ^4.2.0, and Node.js 20+. If you're on `@modelcontextprotocol/sdk` 1.x, use `mcp-handler` 1.x.
+
+## Framework Compatibility
+
+`createMcpHandler` returns a Web-standard request handler, so the package is not tied to Vercel or any particular framework. It can be mounted in:
+
+- Next.js Route Handlers
+- Nuxt/Nitro server handlers using `fromWebHandler`
+- SvelteKit server routes
+- Hono routes using `c.req.raw`
+- Other frameworks that expose Fetch-compatible `Request` and `Response` APIs
+
+Frameworks based on Node.js `IncomingMessage` and `ServerResponse`, such as Express, require a Web Request adapter or the official MCP framework middleware.
 
 ## Quick Start (Next.js)
 
@@ -35,14 +47,14 @@ const handler = createMcpHandler(
         return {
           content: [{ type: "text", text: `🎲 You rolled a ${value}!` }],
         };
-      }
+      },
     );
   },
   {},
   {
     basePath: "/api", // must match where [transport] is located
     verboseLogs: true,
-  }
+  },
 );
 
 export { handler as GET, handler as POST };
@@ -102,14 +114,16 @@ See [Authorization](docs/AUTHORIZATION.md) for wiring details.
 
 ## Features
 
-- **Framework Support**: Next.js and Nuxt
+- **Framework-agnostic**: Web-standard `Request` and `Response` handler
+- **Framework compatibility**: Next.js, Nuxt/Nitro, SvelteKit, Hono, and other Fetch-compatible frameworks
 - **Dual-era protocol support**: 2026-07-28 (stateless) and 2025-era Streamable HTTP from one handler
 - **TypeScript Support**: Full type definitions included
 
 ## Requirements
 
-- Next.js 13+ or Nuxt 3+
 - Node.js 20+
+- A framework with Web-standard `Request` and `Response` APIs, either directly or through an adapter
+- Next.js 13+ when using Next.js, or Nuxt 3+ when using Nuxt
 
 ## License
 
