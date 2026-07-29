@@ -1,11 +1,11 @@
-import {AuthInfo} from "@modelcontextprotocol/sdk/server/auth/types.js";
+import type { AuthInfo } from "@modelcontextprotocol/server";
 import {
-  InvalidTokenError,
-  InsufficientScopeError,
-  ServerError,
-} from "@modelcontextprotocol/sdk/server/auth/errors.js";
-import {withAuthContext} from "./auth-context";
-import {getPublicOrigin} from "../lib/url";
+  OAuthError,
+  OAuthErrorCode,
+  bearerAuthChallengeResponse,
+} from "@modelcontextprotocol/server";
+import { withAuthContext } from "./auth-context";
+import { getPublicOrigin } from "../lib/url";
 
 declare global {
   interface Request {
@@ -43,6 +43,7 @@ export function withMcpAuth(
   return async (req: Request) => {
     const origin = resourceUrl ?? getPublicOrigin(req);
     const resourceMetadataUrl = `${origin}${resourceMetadataPath}`;
+    const challengeOptions = { requiredScopes, resourceMetadataUrl };
 
     const authHeader = req.headers.get("Authorization");
     const [type, token] = authHeader?.split(" ") || [];
@@ -56,19 +57,18 @@ export function withMcpAuth(
       authInfo = await verifyToken(req, bearerToken);
     } catch (error) {
       console.error("Unexpected error authenticating bearer token:", error);
-      const publicError = new InvalidTokenError("Invalid token");
-      return new Response(JSON.stringify(publicError.toResponseObject()), {
-        status: 401,
-        headers: {
-          "WWW-Authenticate": `Bearer error="${publicError.errorCode}", error_description="${publicError.message}", resource_metadata="${resourceMetadataUrl}"`,
-          "Content-Type": "application/json",
-        },
-      });
+      return bearerAuthChallengeResponse(
+        new OAuthError(OAuthErrorCode.InvalidToken, "Invalid token"),
+        challengeOptions
+      );
     }
 
     try {
       if (required && !authInfo) {
-        throw new InvalidTokenError("No authorization provided");
+        throw new OAuthError(
+          OAuthErrorCode.InvalidToken,
+          "No authorization provided"
+        );
       }
 
       if (!authInfo) {
@@ -82,13 +82,16 @@ export function withMcpAuth(
         );
 
         if (!hasAllScopes) {
-          throw new InsufficientScopeError("Insufficient scope");
+          throw new OAuthError(
+            OAuthErrorCode.InsufficientScope,
+            "Insufficient scope"
+          );
         }
       }
 
       // Check if the token is expired
       if (authInfo.expiresAt && authInfo.expiresAt < Date.now() / 1000) {
-        throw new InvalidTokenError("Token has expired");
+        throw new OAuthError(OAuthErrorCode.InvalidToken, "Token has expired");
       }
 
       // Set auth info on the request object after successful verification
@@ -96,39 +99,13 @@ export function withMcpAuth(
 
       return withAuthContext(authInfo, () => handler(req));
     } catch (error) {
-      if (error instanceof InvalidTokenError) {
-        return new Response(JSON.stringify(error.toResponseObject()), {
-          status: 401,
-          headers: {
-            "WWW-Authenticate": `Bearer error="${error.errorCode}", error_description="${error.message}", resource_metadata="${resourceMetadataUrl}"`,
-            "Content-Type": "application/json",
-          },
-        });
-      } else if (error instanceof InsufficientScopeError) {
-        return new Response(JSON.stringify(error.toResponseObject()), {
-          status: 403,
-          headers: {
-            "WWW-Authenticate": `Bearer error="${error.errorCode}", error_description="${error.message}", resource_metadata="${resourceMetadataUrl}"`,
-            "Content-Type": "application/json",
-          },
-        });
-      } else if (error instanceof ServerError) {
-        return new Response(JSON.stringify(error.toResponseObject()), {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-      } else {
+      if (!OAuthError.isInstance(error)) {
         console.error("Unexpected error authenticating bearer token:", error);
-        const serverError = new ServerError("Internal Server Error");
-        return new Response(JSON.stringify(serverError.toResponseObject()), {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
       }
+      // Maps invalid_token → 401, insufficient_scope → 403 (both with a
+      // WWW-Authenticate challenge advertising resource_metadata), anything
+      // unexpected → 500 server_error.
+      return bearerAuthChallengeResponse(error, challengeOptions);
     }
   };
 }

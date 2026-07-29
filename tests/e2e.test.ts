@@ -7,8 +7,10 @@ import {
   type Server,
 } from "node:http";
 import type { AddressInfo } from "node:net";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import {
+  Client,
+  StreamableHTTPClientTransport,
+} from "@modelcontextprotocol/client";
 import { createMcpHandler } from "../src/index";
 import { withMcpAuth } from "../src/auth/auth-wrapper";
 
@@ -25,16 +27,15 @@ describe("e2e", () => {
           "echo",
           {
             description: "Echo a message",
-            inputSchema: { message: z.string() },
+            inputSchema: z.object({ message: z.string() }),
           },
-          async ({ message }, extra) => {
+          async ({ message }, ctx) => {
+            const token = ctx.http?.authInfo?.token;
             return {
               content: [
                 {
                   type: "text",
-                  text: `Tool echo: ${message}${
-                    extra.authInfo?.token ? ` for ${extra.authInfo?.token}` : ""
-                  }`,
+                  text: `Tool echo: ${message}${token ? ` for ${token}` : ""}`,
                 },
               ],
             };
@@ -45,9 +46,9 @@ describe("e2e", () => {
           "greeting",
           {
             description: "Generate a greeting message",
-            argsSchema: {
+            argsSchema: z.object({
               name: z.string().describe("The name of the person to greet"),
-            },
+            }),
           },
           async ({ name }) => {
             return {
@@ -99,10 +100,8 @@ describe("e2e", () => {
         },
       },
       {
-        redisUrl: process.env.KV_URL,
         basePath: "",
         verboseLogs: true,
-        maxDuration: 60,
       }
     );
 
@@ -155,28 +154,21 @@ describe("e2e", () => {
     expect(capabilities?.tools).toBeDefined();
     expect(capabilities?.prompts).toBeDefined();
     expect(capabilities?.resources).toBeDefined();
-    expect((await client.listTools()).tools).toStrictEqual([
-      {
-        "description": "Echo a message",
-        "execution": {
-          "taskSupport": "forbidden",
-        },
-        "inputSchema": {
-          "$schema": "http://json-schema.org/draft-07/schema#",
-          "additionalProperties": false,
-          "properties": {
-            "message": {
-              "type": "string",
-            },
+    const { tools } = await client.listTools();
+    expect(tools).toHaveLength(1);
+    expect(tools[0]).toMatchObject({
+      name: "echo",
+      description: "Echo a message",
+      inputSchema: {
+        type: "object",
+        properties: {
+          message: {
+            type: "string",
           },
-          "required": [
-            "message",
-          ],
-          "type": "object",
         },
-        "name": "echo",
+        required: ["message"],
       },
-    ]);
+    });
     expect((await client.listPrompts()).prompts).toStrictEqual([
       {
         "arguments": [
@@ -270,9 +262,7 @@ describe("e2e", () => {
         arguments: {
           message: "Are you there?",
         },
-      },
-      undefined,
-      {}
+      }
     );
     expect((result.content as any)[0].text).toEqual(
       "Tool echo: Are you there?"
@@ -306,13 +296,91 @@ describe("e2e", () => {
         arguments: {
           message: "Are you there?",
         },
-      },
-      undefined,
-      {}
+      }
     );
     expect((result.content as any)[0].text).toEqual(
       "Tool echo: Are you there? for ACCESS_TOKEN"
     );
+  });
+
+  it("should serve the 2026-07-28 protocol to a pinned modern client", async () => {
+    const modernTransport = new StreamableHTTPClientTransport(
+      new URL(`${endpoint}/mcp`)
+    );
+    const modernClient = new Client(
+      {
+        name: "modern-client",
+        version: "1.0.0",
+      },
+      {
+        capabilities: {},
+        versionNegotiation: { mode: { pin: "2026-07-28" } },
+      }
+    );
+    await modernClient.connect(modernTransport);
+
+    const { tools } = await modernClient.listTools();
+    expect(tools).toHaveLength(1);
+    expect(tools[0].name).toEqual("echo");
+
+    const result = await modernClient.callTool({
+      name: "echo",
+      arguments: {
+        message: "Hello from the future",
+      },
+    });
+    expect((result.content as any)[0].text).toEqual(
+      "Tool echo: Hello from the future"
+    );
+  });
+
+  it("should pass auth info through on the modern protocol path", async () => {
+    const modernTransport = new StreamableHTTPClientTransport(
+      new URL(`${endpoint}/mcp`),
+      {
+        requestInit: {
+          headers: {
+            Authorization: `Bearer ACCESS_TOKEN`,
+          },
+        },
+      }
+    );
+    const modernClient = new Client(
+      {
+        name: "modern-client",
+        version: "1.0.0",
+      },
+      {
+        capabilities: {},
+        versionNegotiation: { mode: { pin: "2026-07-28" } },
+      }
+    );
+    await modernClient.connect(modernTransport);
+    const result = await modernClient.callTool({
+      name: "echo",
+      arguments: {
+        message: "Are you there?",
+      },
+    });
+    expect((result.content as any)[0].text).toEqual(
+      "Tool echo: Are you there? for ACCESS_TOKEN"
+    );
+  });
+
+  it("should answer 410 Gone on the removed SSE transport endpoints", async () => {
+    const sseRes = await fetch(`${endpoint}/sse`, {
+      headers: { Accept: "text/event-stream" },
+    });
+    expect(sseRes.status).toEqual(410);
+    const body = await sseRes.json();
+    expect(body.error.message).toContain("no longer supported");
+
+    const messageRes = await fetch(`${endpoint}/message?sessionId=foo`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", method: "ping", id: 1 }),
+    });
+    expect(messageRes.status).toEqual(410);
   });
 
   it("should return an invalid token error when verifyToken fails", async () => {

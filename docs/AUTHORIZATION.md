@@ -6,7 +6,7 @@ The MCP adapter supports the [MCP Authorization Specification](https://modelcont
 
 ```typescript
 // app/api/[transport]/route.ts
-import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
+import type { AuthInfo } from "@modelcontextprotocol/server";
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { z } from "zod";
 
@@ -17,18 +17,17 @@ const handler = createMcpHandler(
       {
         title: "Echo",
         description: "Echo a message",
-        inputSchema: { message: z.string() },
+        inputSchema: z.object({ message: z.string() }),
       },
-      async ({ message }, extra) => {
-        // Access auth info via extra.authInfo
+      async ({ message }, ctx) => {
+        // Access auth info via ctx.http?.authInfo
+        const authInfo = ctx.http?.authInfo;
         return {
           content: [
             {
               type: "text",
               text: `Echo: ${message}${
-                extra.authInfo?.token
-                  ? ` for user ${extra.authInfo.clientId}`
-                  : ""
+                authInfo?.token ? ` for user ${authInfo.clientId}` : ""
               }`,
             },
           ],
@@ -99,4 +98,10 @@ The path should match `resourceMetadataPath` in your `withMcpAuth` config (defau
 2. `verifyToken` validates the token and returns auth info
 3. If auth is required and fails → 401 response
 4. If required scopes are missing → 403 response
-5. On success, auth info is available via `extra.authInfo` in tool handlers
+5. On success, auth info is available via `ctx.http?.authInfo` in tool handlers
+
+## CIMD (Client ID Metadata Documents)
+
+The 2026-07-28 MCP spec deprecates Dynamic Client Registration (DCR) in favor of CIMD: OAuth clients identify themselves with an HTTPS URL (`client_id`) that serves their metadata document, removing the need for a registration round-trip.
+
+CIMD is implemented by the **authorization server**, which advertises it via `client_id_metadata_document_supported: true` in its RFC 8414 metadata. As a resource server, your MCP deployment doesn't change beyond what this package already provides — clients discover your authorization servers through the Protected Resource Metadata endpoint above, then negotiate CIMD (or fall back to DCR during the deprecation window) directly with the authorization server. If you operate your own authorization server, enable CIMD there; DCR remains functional for backward compatibility but will be removed in a future spec revision.

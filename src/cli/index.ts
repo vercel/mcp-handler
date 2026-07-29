@@ -12,11 +12,13 @@ import { z } from 'zod';
 
 const handler = createMcpHandler(
   server => {
-    server.tool(
+    server.registerTool(
       'roll_dice',
-      'Rolls an N-sided die',
-      { 
-        sides: z.number().int().min(2)
+      {
+        description: 'Rolls an N-sided die',
+        inputSchema: z.object({
+          sides: z.number().int().min(2),
+        }),
       },
       async ({ sides }) => {
         const value = 1 + Math.floor(Math.random() * sides);
@@ -30,11 +32,8 @@ const handler = createMcpHandler(
     // Optional server options
   },
   {
-    // Optional redis config
-    redisUrl: process.env.REDIS_URL,
     // You need these endpoints
     basePath: '/api',
-    maxDuration: 60,
     verboseLogs: true,
   }
 );
@@ -66,7 +65,7 @@ async function installDependencies(
   packageManager: "npm" | "pnpm" | "yarn" | "bun"
 ) {
   const execSync = (await import("node:child_process")).execSync;
-  const dependencies = ["mcp-handler", "zod"];
+  const dependencies = ["mcp-handler", "@modelcontextprotocol/server", "zod"];
 
   const commands = {
     npm: `npm install ${dependencies.join(" ")}`,

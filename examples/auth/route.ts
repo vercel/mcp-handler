@@ -1,4 +1,4 @@
-import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types";
+import type { AuthInfo } from "@modelcontextprotocol/server";
 import {
   createMcpHandler,
   withMcpAuth,
@@ -8,21 +8,22 @@ import { z } from "zod";
 // Define the handler with proper parameter validation
 const handler = createMcpHandler(
   (server) => {
-    server.tool(
+    server.registerTool(
       "echo",
-      "Echo a message back with authentication info",
       {
-        message: z.string().describe("The message to echo back"),
+        description: "Echo a message back with authentication info",
+        inputSchema: z.object({
+          message: z.string().describe("The message to echo back"),
+        }),
       },
-      async ({ message }, extra) => {
+      async ({ message }, ctx) => {
+        const authInfo = ctx.http?.authInfo;
         return {
           content: [
             {
               type: "text",
               text: `Echo: ${message}${
-                extra.authInfo?.token
-                  ? ` (from ${extra.authInfo.clientId})`
-                  : ""
+                authInfo?.token ? ` (from ${authInfo.clientId})` : ""
               }`,
             },
           ],
@@ -30,22 +31,11 @@ const handler = createMcpHandler(
       }
     );
   },
-  // Server capabilities
-  {
-    capabilities: {
-      auth: {
-        type: "bearer",
-        required: true,
-      },
-    },
-  },
+  // Server options
+  {},
   // Route configuration
   {
-    streamableHttpEndpoint: "/mcp",
-    sseEndpoint: "/sse",
-    sseMessageEndpoint: "/message",
     basePath: "/api/mcp",
-    redisUrl: process.env.REDIS_URL,
   }
 );
 

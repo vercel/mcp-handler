@@ -1,4 +1,4 @@
-import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
+import type { AuthInfo } from "@modelcontextprotocol/server";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 const authContext = new AsyncLocalStorage<AuthInfo>();
