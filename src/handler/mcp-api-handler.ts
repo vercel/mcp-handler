@@ -141,6 +141,8 @@ export function initializeMcpApiHandler(
     }
 
     try {
+      // withMcpAuth attaches the verified AuthInfo to this Request. Pass it
+      // explicitly so the SDK exposes it as ctx.http?.authInfo.
       const response = await sdkHandler.fetch(req, {
         authInfo: req.auth,
         parsedBody,

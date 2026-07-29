@@ -53,6 +53,10 @@ const handler = createMcpHandler((server) => {
 export { handler as GET, handler as POST };
 ```
 
+`/api/mcp` is a convention, not a required path. `mcp-handler` does not inspect
+the request pathname, so you can place this handler at any framework route and
+give clients that route's complete URL.
+
 ## Connecting Clients
 
 If your client supports Streamable HTTP, connect directly:
