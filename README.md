@@ -27,7 +27,7 @@ Frameworks based on Node.js `IncomingMessage` and `ServerResponse`, such as Expr
 ## Quick Start (Next.js)
 
 ```typescript
-// app/api/[transport]/route.ts
+// app/api/mcp/route.ts
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 
@@ -52,7 +52,7 @@ const handler = createMcpHandler(
   },
   {},
   {
-    basePath: "/api", // must match where [transport] is located
+    basePath: "/api", // serves this handler at /api/mcp
     verboseLogs: true,
   },
 );
@@ -87,7 +87,7 @@ For stdio-only clients, use [mcp-remote](https://www.npmjs.com/package/mcp-remot
 
 - **2026-07-28** (current): served natively — stateless, no sessions, per-request `_meta` envelope, `server/discover`.
 - **2025-era Streamable HTTP**: served via the SDK's stateless legacy fallback from the same handler. GET/DELETE session operations answer `405` (serving is stateless).
-- **HTTP+SSE transport (2024-11-05)**: removed in 2.x. Requests to the `/sse` and `/message` endpoints answer `410 Gone`. Redis is no longer needed or used.
+- **HTTP+SSE transport (2024-11-05)**: removed in 2.x. The static quick-start route does not mount `/sse` or `/message`, so those paths return `404 Not Found`. If a dynamic route forwards them to `mcp-handler`, they answer `410 Gone`. Redis is no longer needed or used.
 
 ### Authorization (CIMD era)
 
