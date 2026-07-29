@@ -23,7 +23,7 @@ const handler = async (
         {
           title: "Roll Dice",
           description: "Roll a dice with a specified number of sides.",
-          inputSchema: { sides: z.number().int().min(2) },
+          inputSchema: z.object({ sides: z.number().int().min(2) }),
         },
         async ({ sides }) => {
           const value = 1 + Math.floor(Math.random() * sides);
@@ -41,10 +41,8 @@ const handler = async (
       },
     },
     {
-      redisUrl: process.env.REDIS_URL,
       basePath: `/dynamic/${p}`,
       verboseLogs: true,
-      maxDuration: 60,
     }
   )(req);
 };
@@ -56,10 +54,10 @@ export { handler as GET, handler as POST, handler as DELETE };
 
 ```typescript
 interface Config {
-  redisUrl?: string;    // Redis connection URL for pub/sub
-  basePath?: string;    // Base path for MCP endpoints
-  maxDuration?: number; // Maximum duration for SSE connections (seconds)
+  basePath?: string;     // Base path for MCP endpoints
   verboseLogs?: boolean; // Enable debug logging
+  onEvent?: (event: McpEvent) => void; // Analytics/debugging callback
+  disableSse?: boolean;  // Respond 404 instead of 410 on removed SSE endpoints
 }
 ```
 
@@ -78,7 +76,7 @@ const handler = createMcpHandler(
       {
         title: "Roll Dice",
         description: "Roll a dice with a specified number of sides.",
-        inputSchema: { sides: z.number().int().min(2) },
+        inputSchema: z.object({ sides: z.number().int().min(2) }),
       },
       async ({ sides }) => {
         const value = 1 + Math.floor(Math.random() * sides);

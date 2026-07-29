@@ -62,7 +62,7 @@ Restart Claude Desktop to pick up changes. You should see a hammer icon in the b
 
 Edit `~/.cursor/mcp.json`.
 
-As of version 0.48.0, Cursor supports unauthed SSE servers directly. If your MCP server uses OAuth authorization, you still need mcp-remote.
+Cursor supports Streamable HTTP servers directly. If your MCP server uses OAuth authorization, you may still need mcp-remote.
 
 ## Windsurf
 
@@ -75,11 +75,18 @@ Edit `~/.codeium/windsurf/mcp_config.json`.
 Use the MCP client directly in your application:
 
 ```typescript
-import { McpClient } from "@modelcontextprotocol/sdk/client";
+import {
+  Client,
+  StreamableHTTPClientTransport,
+} from "@modelcontextprotocol/client";
 
-const client = new McpClient({
-  transport: new SSEClientTransport("/api/mcp/mcp"),
+const client = new Client({ name: "my-app", version: "1.0.0" });
+await client.connect(
+  new StreamableHTTPClientTransport(new URL("https://example.com/api/mcp/mcp"))
+);
+
+const result = await client.callTool({
+  name: "yourTool",
+  arguments: { param: "value" },
 });
-
-const result = await client.request("yourMethod", { param: "value" });
 ```

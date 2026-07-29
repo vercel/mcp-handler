@@ -1,4 +1,4 @@
-import { OAuthProtectedResourceMetadata } from "@modelcontextprotocol/sdk/shared/auth.js";
+import type { OAuthProtectedResourceMetadata } from "@modelcontextprotocol/server";
 import { getPublicUrl } from "../lib/url";
 
 /**
