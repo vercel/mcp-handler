@@ -4,7 +4,6 @@ import {
   OAuthErrorCode,
   bearerAuthChallengeResponse,
 } from "@modelcontextprotocol/server";
-import { withAuthContext } from "./auth-context";
 import { getPublicOrigin } from "../lib/url";
 
 declare global {
@@ -17,7 +16,7 @@ export function withMcpAuth(
   handler: (req: Request) => Response | Promise<Response>,
   verifyToken: (
     req: Request,
-    bearerToken?: string
+    bearerToken?: string,
   ) => AuthInfo | undefined | Promise<AuthInfo | undefined>,
   {
     required = false,
@@ -38,7 +37,7 @@ export function withMcpAuth(
      * (X-Forwarded-Host, X-Forwarded-Proto, Forwarded) or falls back to req.url.
      */
     resourceUrl?: string;
-  } = {}
+  } = {},
 ) {
   return async (req: Request) => {
     const origin = resourceUrl ?? getPublicOrigin(req);
@@ -59,7 +58,7 @@ export function withMcpAuth(
       console.error("Unexpected error authenticating bearer token:", error);
       return bearerAuthChallengeResponse(
         new OAuthError(OAuthErrorCode.InvalidToken, "Invalid token"),
-        challengeOptions
+        challengeOptions,
       );
     }
 
@@ -67,7 +66,7 @@ export function withMcpAuth(
       if (required && !authInfo) {
         throw new OAuthError(
           OAuthErrorCode.InvalidToken,
-          "No authorization provided"
+          "No authorization provided",
         );
       }
 
@@ -78,13 +77,13 @@ export function withMcpAuth(
       // Check if token has the required scopes (if any)
       if (requiredScopes?.length) {
         const hasAllScopes = requiredScopes.every((scope) =>
-          authInfo!.scopes.includes(scope)
+          authInfo!.scopes.includes(scope),
         );
 
         if (!hasAllScopes) {
           throw new OAuthError(
             OAuthErrorCode.InsufficientScope,
-            "Insufficient scope"
+            "Insufficient scope",
           );
         }
       }
@@ -97,7 +96,7 @@ export function withMcpAuth(
       // Set auth info on the request object after successful verification
       req.auth = authInfo;
 
-      return withAuthContext(authInfo, () => handler(req));
+      return handler(req);
     } catch (error) {
       if (!OAuthError.isInstance(error)) {
         console.error("Unexpected error authenticating bearer token:", error);

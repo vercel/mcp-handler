@@ -1,7 +1,7 @@
 {
   "name": "mcp-handler",
   "version": "2.0.0",
-  "description": "Vercel MCP Adapter for Next.js and other frameworks",
+  "description": "Framework-agnostic HTTP adapter for Model Context Protocol servers",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "commonjs",
