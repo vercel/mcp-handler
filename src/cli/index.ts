@@ -103,19 +103,44 @@ async function init() {
       process.exit(1);
     }
 
+    const sourceAppPath = path.join(process.cwd(), "src", "app");
+    const usesSourceDirectory = await fs
+      .stat(sourceAppPath)
+      .then((entry) => entry.isDirectory())
+      .catch(() => false);
+    const appPath = usesSourceDirectory
+      ? sourceAppPath
+      : path.join(process.cwd(), "app");
+
     // Create the static app/api/mcp route
-    const routePath = path.join(process.cwd(), "app", "api", "mcp");
+    const routePath = path.join(appPath, "api", "mcp");
     await fs.mkdir(routePath, { recursive: true });
 
-    // Create the route.ts file
     const routeFilePath = path.join(routePath, "route.ts");
-    await fs.writeFile(routeFilePath, ROUTE_TEMPLATE);
+    try {
+      await fs.writeFile(routeFilePath, ROUTE_TEMPLATE, { flag: "wx" });
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "EEXIST"
+      ) {
+        throw new Error(
+          `MCP route already exists at ${path.relative(
+            process.cwd(),
+            routeFilePath,
+          )}`,
+        );
+      }
+      throw error;
+    }
 
     console.log(chalk.green("✅ Successfully created MCP route handler!"));
 
-    // Detect and use the appropriate package manager
-    const packageManager = await detectPackageManager();
-    await installDependencies(packageManager);
+    if (program.opts().install) {
+      const packageManager = await detectPackageManager();
+      await installDependencies(packageManager);
+    }
   } catch (error) {
     console.error(chalk.red("Error creating MCP route handler:"), error);
     process.exit(1);
@@ -125,6 +150,7 @@ async function init() {
 program
   .name("mcp-handler")
   .description("Initialize MCP route handler in your Next.js project")
+  .option("--no-install", "Create the route without installing dependencies")
   .action(init);
 
 program.parse();

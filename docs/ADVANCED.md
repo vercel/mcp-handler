@@ -44,9 +44,29 @@ export { handler as GET, handler as POST };
 ```typescript
 interface Config {
   verboseLogs?: boolean; // Enable debug logging
-  onEvent?: (event: McpEvent) => void; // Analytics/debugging callback
+  onEvent?: (event: McpEvent) => void | Promise<void>; // Analytics/debugging callback
+  allowedOriginHostnames?: string[]; // Additional browser Origin hostnames
 }
 ```
+
+Requests with an `Origin` header are accepted when the Origin hostname matches
+the public MCP server hostname. Add hostname-only entries (without a scheme or
+port) to `allowedOriginHostnames` when a browser-based client is hosted on a
+different hostname:
+
+```typescript
+const handler = createMcpHandler(
+  initializeServer,
+  {},
+  {
+    allowedOriginHostnames: ["inspector.example.com"],
+  },
+);
+```
+
+Server-side MCP clients normally omit `Origin` and are unaffected. Event
+callbacks may be synchronous or asynchronous; callback failures are logged
+when `verboseLogs` is enabled and never fail the MCP request.
 
 ## Nuxt Usage
 

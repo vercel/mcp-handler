@@ -14,7 +14,7 @@
     ".": {
       "types": {
         "import": "./dist/index.d.mts",
-        "require": "./dist/index.d.cjs"
+        "require": "./dist/index.d.ts"
       },
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
@@ -22,14 +22,15 @@
     "./next": {
       "types": {
         "import": "./dist/index.d.mts",
-        "require": "./dist/index.d.cjs"
+        "require": "./dist/index.d.ts"
       },
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "docs"
   ],
   "repository": {
     "type": "git",
@@ -41,7 +42,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "test": "vitest run",
+    "test": "pnpm build && vitest run",
     "test:watch": "vitest watch",
     "version-packages": "changeset version",
     "changeset": "changeset",
@@ -63,6 +64,7 @@
     "@changesets/cli": "^2.27.12",
     "@modelcontextprotocol/client": "^2.0.0",
     "@modelcontextprotocol/server": "^2.0.0",
+    "@modelcontextprotocol/sdk-v1": "npm:@modelcontextprotocol/sdk@1.26.0",
     "@types/node": "^22.15.8",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0",

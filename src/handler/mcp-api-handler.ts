@@ -1,6 +1,7 @@
 import {
   createMcpHandler as createSdkMcpHandler,
   McpServer,
+  originValidationResponse,
 } from "@modelcontextprotocol/server";
 import type {
   McpEvent,
@@ -8,6 +9,7 @@ import type {
   McpErrorEvent,
 } from "../lib/log-helper";
 import { createEvent } from "../lib/log-helper";
+import { getPublicOrigin } from "../lib/url";
 import type { ServerOptions } from ".";
 
 /**
@@ -41,6 +43,12 @@ export type Config = {
    */
   verboseLogs?: boolean;
   /**
+   * Additional Origin hostnames allowed to call this handler from a browser.
+   * The public request hostname is always allowed. Requests without an Origin
+   * header, such as ordinary server-side MCP clients, are unaffected.
+   */
+  allowedOriginHostnames?: string[];
+  /**
    * @deprecated Ignored in 2.x. Mount the handler at the desired route in
    * your framework instead.
    */
@@ -49,7 +57,7 @@ export type Config = {
    * Callback function that receives MCP events.
    * This can be used to track analytics, debug issues, or implement custom behaviors.
    */
-  onEvent?: (event: McpEvent) => void;
+  onEvent?: (event: McpEvent) => void | Promise<void>;
 
   /**
    * @deprecated Ignored in 2.x. The legacy HTTP+SSE transport was removed.
@@ -69,7 +77,7 @@ export function initializeMcpApiHandler(
   serverOptions: ServerOptions = {},
   config: Config = {},
 ): (req: Request) => Promise<Response> {
-  const { verboseLogs, onEvent } = config;
+  const { verboseLogs, onEvent, allowedOriginHostnames = [] } = config;
 
   const {
     serverInfo = {
@@ -79,18 +87,33 @@ export function initializeMcpApiHandler(
     ...mcpServerOptions
   } = serverOptions;
 
+  const reportEventError = (error: unknown) => {
+    if (verboseLogs) {
+      console.error("MCP onEvent callback error:", error);
+    }
+  };
+
+  const emitEvent = <T extends McpEvent>(event: Omit<T, "timestamp">) => {
+    try {
+      const pending = onEvent?.(createEvent<T>(event));
+      if (pending) {
+        void pending.catch(reportEventError);
+      }
+    } catch (error) {
+      reportEventError(error);
+    }
+  };
+
   const emitError = (error: Error) => {
     if (verboseLogs) {
       console.error("MCP handler error:", error);
     }
-    onEvent?.(
-      createEvent<McpErrorEvent>({
-        type: "ERROR",
-        error,
-        source: "request",
-        severity: "error",
-      }),
-    );
+    emitEvent<McpErrorEvent>({
+      type: "ERROR",
+      error,
+      source: "request",
+      severity: "error",
+    });
   };
 
   // The SDK handler serves the 2026-07-28 protocol (stateless, per-request
@@ -110,6 +133,15 @@ export function initializeMcpApiHandler(
   );
 
   return async function mcpApiHandler(req: Request): Promise<Response> {
+    const publicHostname = new URL(getPublicOrigin(req)).hostname;
+    const originRejection = originValidationResponse(req, [
+      publicHostname,
+      ...allowedOriginHostnames,
+    ]);
+    if (originRejection) {
+      return originRejection;
+    }
+
     let method: string | undefined;
     let parsedBody: unknown;
     const started = Date.now();
@@ -126,14 +158,12 @@ export function initializeMcpApiHandler(
           "method" in parsedBody
         ) {
           method = String((parsedBody as { method: unknown }).method);
-          onEvent?.(
-            createEvent<McpRequestEvent>({
-              type: "REQUEST_RECEIVED",
-              method,
-              parameters: parsedBody,
-              status: "success",
-            }),
-          );
+          emitEvent<McpRequestEvent>({
+            type: "REQUEST_RECEIVED",
+            method,
+            parameters: parsedBody,
+            status: "success",
+          });
         }
       } catch {
         // Malformed JSON is rejected by the SDK handler below.
@@ -143,20 +173,28 @@ export function initializeMcpApiHandler(
     try {
       // withMcpAuth attaches the verified AuthInfo to this Request. Pass it
       // explicitly so the SDK exposes it as ctx.http?.authInfo.
-      const response = await sdkHandler.fetch(req, {
+      let response = await sdkHandler.fetch(req, {
         authInfo: req.auth,
         parsedBody,
       });
 
+      if (response.status === 405 && !response.headers.has("Allow")) {
+        const headers = new Headers(response.headers);
+        headers.set("Allow", "POST");
+        response = new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers,
+        });
+      }
+
       if (method) {
-        onEvent?.(
-          createEvent<McpRequestEvent>({
-            type: "REQUEST_COMPLETED",
-            method,
-            duration: Date.now() - started,
-            status: response.ok ? "success" : "error",
-          }),
-        );
+        emitEvent<McpRequestEvent>({
+          type: "REQUEST_COMPLETED",
+          method,
+          duration: Date.now() - started,
+          status: response.ok ? "success" : "error",
+        });
       }
       return response;
     } catch (error) {
