@@ -57,6 +57,10 @@ export { handler as GET, handler as POST };
 the request pathname, so you can place this handler at any framework route and
 give clients that route's complete URL.
 
+Browser requests with an `Origin` header are restricted to the MCP server's
+public hostname by default. See [Advanced Usage](docs/ADVANCED.md) to allow
+additional browser Origin hostnames.
+
 ## Connecting Clients
 
 If your client supports Streamable HTTP, connect directly:
@@ -114,6 +118,7 @@ See [Authorization](docs/AUTHORIZATION.md) for wiring details.
 - **Framework-agnostic**: Web-standard `Request` and `Response` handler
 - **Framework compatibility**: Next.js, Nuxt/Nitro, SvelteKit, Hono, and other Fetch-compatible frameworks
 - **Dual-era protocol support**: 2026-07-28 (stateless) and 2025-era Streamable HTTP from one handler
+- **Secure browser boundary**: Origin validation with an explicit cross-origin allowlist
 - **TypeScript Support**: Full type definitions included
 
 ## Requirements

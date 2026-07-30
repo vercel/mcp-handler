@@ -11,6 +11,8 @@ import {
   Client,
   StreamableHTTPClientTransport,
 } from "@modelcontextprotocol/client";
+import { Client as V1Client } from "@modelcontextprotocol/sdk-v1/client/index.js";
+import { StreamableHTTPClientTransport as V1StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk-v1/client/streamableHttp.js";
 import { createMcpHandler } from "../src/index";
 import { withMcpAuth } from "../src/auth/auth-wrapper";
 
@@ -294,6 +296,74 @@ describe("e2e", () => {
     );
   });
 
+  it("should remain compatible with an actual MCP SDK 1.x client", async () => {
+    const legacyTransport = new V1StreamableHTTPClientTransport(
+      new URL(endpoint),
+    );
+    const legacyClient = new V1Client({
+      name: "sdk-v1-client",
+      version: "1.26.0",
+    });
+
+    await legacyClient.connect(legacyTransport);
+    const { tools } = await legacyClient.listTools();
+    const result = await legacyClient.callTool({
+      name: "echo",
+      arguments: {
+        message: "Hello from SDK v1",
+      },
+    });
+
+    expect(tools.map(({ name }) => name)).toEqual(["echo"]);
+    expect((result.content as Array<{ text: string }>)[0].text).toEqual(
+      "Tool echo: Hello from SDK v1",
+    );
+    await legacyClient.close();
+  });
+
+  it("isolates auth context across concurrent clients and later unauthenticated calls", async () => {
+    const callAs = async (token: string) => {
+      const transport = new StreamableHTTPClientTransport(new URL(endpoint), {
+        requestInit: {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      });
+      const authenticatedClient = new Client(
+        {
+          name: `client-${token}`,
+          version: "1.0.0",
+        },
+        {
+          capabilities: {},
+        },
+      );
+      await authenticatedClient.connect(transport);
+      const result = await authenticatedClient.callTool({
+        name: "echo",
+        arguments: { message: "concurrent" },
+      });
+      await authenticatedClient.close();
+      return (result.content as Array<{ text: string }>)[0].text;
+    };
+
+    const [first, second] = await Promise.all([
+      callAs("FIRST_TOKEN"),
+      callAs("SECOND_TOKEN"),
+    ]);
+    const unauthenticated = await client.callTool({
+      name: "echo",
+      arguments: { message: "after auth" },
+    });
+
+    expect(first).toEqual("Tool echo: concurrent for FIRST_TOKEN");
+    expect(second).toEqual("Tool echo: concurrent for SECOND_TOKEN");
+    expect(
+      (unauthenticated.content as Array<{ text: string }>)[0].text,
+    ).toEqual("Tool echo: after auth");
+  });
+
   it("should serve the 2026-07-28 protocol to a pinned modern client", async () => {
     const modernTransport = new StreamableHTTPClientTransport(
       new URL(endpoint),
@@ -359,6 +429,7 @@ describe("e2e", () => {
   });
 
   it("should return an invalid token error when verifyToken fails", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     const authenticatedTransport = new StreamableHTTPClientTransport(
       new URL(endpoint),
       {
@@ -382,9 +453,19 @@ describe("e2e", () => {
       throw new Error("JWT signature failed, or something");
     });
 
-    await expect(
-      authenticatedClient.connect(authenticatedTransport),
-    ).rejects.toThrow("Invalid token");
+    try {
+      await expect(
+        authenticatedClient.connect(authenticatedTransport),
+      ).rejects.toThrow("Invalid token");
+      expect(consoleError).toHaveBeenCalledWith(
+        "Unexpected error authenticating bearer token:",
+        expect.objectContaining({
+          message: "JWT signature failed, or something",
+        }),
+      );
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 });
 
