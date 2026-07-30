@@ -98,8 +98,6 @@ describe("e2e", () => {
             subscribe: true,
           },
         },
-      },
-      {
         verboseLogs: true,
       },
     );
