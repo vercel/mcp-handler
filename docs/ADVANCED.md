@@ -39,13 +39,17 @@ const handler = async (
 export { handler as GET, handler as POST };
 ```
 
-## Configuration Options
+## Options
+
+`createMcpHandler` takes a single options object: the SDK's `ServerOptions`
+(capabilities, instructions, ...) plus handler-level extras.
 
 ```typescript
-interface Config {
+type McpHandlerOptions = ServerOptions & {
+  serverInfo?: { name: string; version: string }; // Reported to clients during initialization
   verboseLogs?: boolean; // Enable debug logging
   onEvent?: (event: McpEvent) => void; // Analytics/debugging callback
-}
+};
 ```
 
 ## Nuxt Usage

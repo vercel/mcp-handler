@@ -101,7 +101,8 @@ See [Authorization](docs/AUTHORIZATION.md) for wiring details.
 - `inputSchema`/`argsSchema` take a full Standard Schema (e.g. `z.object({ ... })`) instead of a raw zod shape.
 - Variadic `server.tool(...)` / `.prompt(...)` / `.resource(...)` are removed — use `registerTool` / `registerPrompt` / `registerResource`.
 - In handler callbacks, `extra.authInfo` is now `ctx.http?.authInfo`.
-- Route and transport config options from 1.x (`basePath`, `streamableHttpEndpoint`, `sseEndpoint`, `sseMessageEndpoint`, `disableSse`, `redisUrl`, `maxDuration`, and `sessionIdGenerator`) are ignored compatibility shims. Mount the handler at the desired route instead.
+- `createMcpHandler(initialize, serverOptions, config)` is now `createMcpHandler(initialize, options)` — one options object combining the SDK's server options with `serverInfo`, `verboseLogs`, and `onEvent`.
+- Route and transport config options from 1.x (`basePath`, `streamableHttpEndpoint`, `sseEndpoint`, `sseMessageEndpoint`, `disableSse`, `redisUrl`, `maxDuration`, and `sessionIdGenerator`) are removed. Mount the handler at the desired route instead.
 
 ## Documentation
 

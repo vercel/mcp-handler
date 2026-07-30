@@ -1,30 +1,28 @@
-import { type Config, initializeMcpApiHandler } from "./mcp-api-handler";
-import type {
-  ServerOptions as McpServerOptions,
-  McpServer,
-} from "@modelcontextprotocol/server";
+import {
+  initializeMcpApiHandler,
+  type McpHandlerOptions,
+} from "./mcp-api-handler";
+import type { McpServer } from "@modelcontextprotocol/server";
+
+export type { McpHandlerOptions };
 
 /**
  * Creates a MCP handler that can be used to handle MCP requests.
+ *
+ * The returned handler is a web-standard `(request: Request) => Promise<Response>`
+ * function. It serves every request it receives — routing belongs to the host
+ * framework, so mount it at the route you want (a Next.js route handler,
+ * Hono, Nitro, ...).
+ *
  * @param initializeServer - A function that initializes the MCP server. Use this to access the server instance and register tools, prompts, and resources.
- * @param serverOptions - Options for the MCP server.
- * @param config - Configuration for the MCP handler.
+ * @param options - The SDK's server options plus handler extras (`serverInfo`, `verboseLogs`, `onEvent`).
  * @returns A function that can be used to handle MCP requests.
  */
-
-export type ServerOptions = McpServerOptions & {
-  serverInfo?: {
-    name: string;
-    version: string;
-  };
-};
-
 export default function createMcpRouteHandler(
   initializeServer:
     | ((server: McpServer) => Promise<void>)
     | ((server: McpServer) => void),
-  serverOptions?: ServerOptions,
-  config?: Config
+  options?: McpHandlerOptions,
 ): (request: Request) => Promise<Response> {
-  return initializeMcpApiHandler(initializeServer, serverOptions, config);
+  return initializeMcpApiHandler(initializeServer, options);
 }

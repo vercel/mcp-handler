@@ -29,10 +29,7 @@ const handler = createMcpHandler(
     );
   },
   {
-    // Optional server options
-  },
-  {
-    // Optional handler config
+    // Optional: server options plus handler extras
     verboseLogs: true,
   }
 );

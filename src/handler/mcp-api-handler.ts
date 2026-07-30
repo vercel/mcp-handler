@@ -1,6 +1,7 @@
 import {
   createMcpHandler as createSdkMcpHandler,
   McpServer,
+  type ServerOptions as McpServerOptions,
 } from "@modelcontextprotocol/server";
 import type {
   McpEvent,
@@ -8,76 +9,46 @@ import type {
   McpErrorEvent,
 } from "../lib/log-helper";
 import { createEvent } from "../lib/log-helper";
-import type { ServerOptions } from ".";
 
 /**
- * Configuration for the MCP handler.
+ * Options for the MCP handler: the SDK's `ServerOptions` (capabilities,
+ * instructions, ...) plus handler-level extras.
  */
-export type Config = {
+export type McpHandlerOptions = McpServerOptions & {
   /**
-   * @deprecated Ignored in 2.x. Redis is no longer used.
+   * Name and version reported to clients during initialization.
    */
-  redisUrl?: string;
-  /**
-   * @deprecated Ignored in 2.x. Mount the handler at the desired route in
-   * your framework instead.
-   */
-  streamableHttpEndpoint?: string;
-  /**
-   * @deprecated Ignored in 2.x. The legacy HTTP+SSE transport was removed.
-   */
-  sseEndpoint?: string;
-  /**
-   * @deprecated Ignored in 2.x. The legacy HTTP+SSE transport was removed.
-   */
-  sseMessageEndpoint?: string;
-  /**
-   * @deprecated Ignored in 2.x. Requests are served per invocation.
-   */
-  maxDuration?: number;
+  serverInfo?: {
+    name: string;
+    version: string;
+  };
   /**
    * If true, enables console logging.
    * @default false
    */
   verboseLogs?: boolean;
   /**
-   * @deprecated Ignored in 2.x. Mount the handler at the desired route in
-   * your framework instead.
-   */
-  basePath?: string;
-  /**
    * Callback function that receives MCP events.
    * This can be used to track analytics, debug issues, or implement custom behaviors.
    */
   onEvent?: (event: McpEvent) => void;
-
-  /**
-   * @deprecated Ignored in 2.x. The legacy HTTP+SSE transport was removed.
-   */
-  disableSse?: boolean;
-
-  /**
-   * @deprecated Ignored in 2.x. Sessions no longer exist.
-   */
-  sessionIdGenerator?: undefined;
 };
 
 export function initializeMcpApiHandler(
   initializeServer:
     | ((server: McpServer) => Promise<void>)
     | ((server: McpServer) => void),
-  serverOptions: ServerOptions = {},
-  config: Config = {},
+  options: McpHandlerOptions = {},
 ): (req: Request) => Promise<Response> {
-  const { verboseLogs, onEvent } = config;
-
   const {
     serverInfo = {
       name: "mcp-typescript server on vercel",
       version: "0.1.0",
     },
+    verboseLogs = false,
+    onEvent,
     ...mcpServerOptions
-  } = serverOptions;
+  } = options;
 
   const emitError = (error: Error) => {
     if (verboseLogs) {
