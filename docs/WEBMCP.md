@@ -45,3 +45,30 @@ In a browser (or polyfill) with a WebMCP provider, the script initializes agains
 - **The allowlist is deliberate and required.** Any script or agent in the page can invoke registered tools with the user's credentials, so expose only tools that are safe to call on the user's behalf. Prefer read-only tools; treat side-effectful tools like you would a same-site form submission.
 - The allowlist controls what is surfaced to in-page agents — it does not restrict the MCP endpoint itself, which continues to serve its full tool set to regular MCP clients.
 - If your MCP endpoint uses `withMcpAuth` with bearer tokens, the bridged calls will be unauthenticated unless your verifier also accepts session cookies. Cookie-session verification is the natural pairing for this bridge.
+
+## Hardening
+
+### Gate cookie auth on `Sec-Fetch-Site: same-origin`
+
+Browsers attach `Sec-Fetch-Site` to every request, and the bridge's tool calls are always `same-origin`. If your verifier honors session cookies, reject cookie-authenticated calls from anywhere else — this cuts off any residual cross-site angle while leaving bearer-token clients untouched:
+
+```typescript
+const handler = withMcpAuth(mcpHandler, async (req, bearerToken) => {
+  // Remote MCP clients: OAuth bearer path.
+  if (bearerToken) return verifyOAuthToken(bearerToken);
+
+  // WebMCP bridge: only honor cookies for same-origin, browser-issued calls.
+  if (req.headers.get("sec-fetch-site") !== "same-origin") return undefined;
+  return verifySessionCookie(req);
+});
+```
+
+### CSP nonce for the script tag
+
+The bridge is a regular same-origin external script, so under a nonce-based CSP (`script-src 'nonce-...' 'strict-dynamic'`) it needs the nonce on its tag like any other script:
+
+```html
+<script src="/webmcp.js" nonce="<your-request-nonce>" async></script>
+```
+
+The tool calls themselves are same-origin `fetch`es, so the default `connect-src 'self'` already covers them.
