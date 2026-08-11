@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { createMcpHandler } from "../src/index";
-import { createWebMcpScriptHandler } from "../src/webmcp";
+import { experimental_createWebMcpScriptHandler as createWebMcpScriptHandler } from "../src/webmcp";
 import { nodeToWebHandler } from "./helpers";
 
 type RegisteredTool = {
@@ -13,7 +13,7 @@ type RegisteredTool = {
   execute: (args: unknown) => Promise<unknown>;
 };
 
-describe("createWebMcpScriptHandler", () => {
+describe("experimental_createWebMcpScriptHandler", () => {
   it("serves the bridge script with the embedded allowlist", async () => {
     const handler = createWebMcpScriptHandler({
       endpoint: "/api/mcp",

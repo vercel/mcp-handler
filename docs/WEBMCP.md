@@ -12,9 +12,9 @@ Mount the script endpoint next to your MCP route:
 
 ```typescript
 // app/webmcp.js/route.ts
-import { createWebMcpScriptHandler } from "mcp-handler/webmcp";
+import { experimental_createWebMcpScriptHandler } from "mcp-handler/webmcp";
 
-const handler = createWebMcpScriptHandler({
+const handler = experimental_createWebMcpScriptHandler({
   endpoint: "/api/mcp",
   // Only these tools are exposed to in-page agents.
   tools: ["roll_dice", "search_docs"],
