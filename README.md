@@ -109,6 +109,7 @@ See [Authorization](docs/AUTHORIZATION.md) for wiring details.
 - [Client Integration](docs/CLIENTS.md) - Claude Desktop, Cursor, Windsurf setup
 - [Authorization](docs/AUTHORIZATION.md) - OAuth and token verification
 - [Advanced Usage](docs/ADVANCED.md) - Dynamic routing, Nuxt, configuration options
+- [WebMCP Bridge](docs/WEBMCP.md) - Expose allowlisted tools to in-page agents (experimental)
 
 ## Features
 

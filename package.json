@@ -26,6 +26,14 @@
       },
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
+    },
+    "./webmcp": {
+      "types": {
+        "import": "./dist/webmcp/index.d.mts",
+        "require": "./dist/webmcp/index.d.ts"
+      },
+      "import": "./dist/webmcp/index.mjs",
+      "require": "./dist/webmcp/index.js"
     }
   },
   "files": [
