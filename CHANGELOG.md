@@ -1,5 +1,11 @@
 # mcp-handler
 
+## 2.1.1
+
+### Patch Changes
+
+- e38a932: Forward `maxSubscriptions` to the MCP SDK handler so applications can bound or disable subscription streams.
+
 ## 2.1.0
 
 ### Minor Changes
