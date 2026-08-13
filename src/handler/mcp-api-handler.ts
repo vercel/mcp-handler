@@ -1,6 +1,7 @@
 import {
   createMcpHandler as createSdkMcpHandler,
   McpServer,
+  type CreateMcpHandlerOptions as SdkMcpHandlerOptions,
   type ServerOptions as McpServerOptions,
 } from "@modelcontextprotocol/server";
 import type {
@@ -15,6 +16,12 @@ import { createEvent } from "../lib/log-helper";
  * instructions, ...) plus handler-level extras.
  */
 export type McpHandlerOptions = McpServerOptions & {
+  /**
+   * Maximum number of concurrent `subscriptions/listen` streams.
+   * Set to `0` to reject subscriptions without opening an SSE stream.
+   * @default 1024
+   */
+  maxSubscriptions?: SdkMcpHandlerOptions["maxSubscriptions"];
   /**
    * Name and version reported to clients during initialization.
    */
@@ -47,6 +54,7 @@ export function initializeMcpApiHandler(
     },
     verboseLogs = false,
     onEvent,
+    maxSubscriptions,
     ...mcpServerOptions
   } = options;
 
@@ -77,6 +85,7 @@ export function initializeMcpApiHandler(
     {
       legacy: "stateless",
       onerror: emitError,
+      maxSubscriptions,
     },
   );
 
