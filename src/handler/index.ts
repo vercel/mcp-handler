@@ -15,7 +15,7 @@ export type { McpHandlerOptions };
  * Hono, Nitro, ...).
  *
  * @param initializeServer - A function that initializes the MCP server. Use this to access the server instance and register tools, prompts, and resources.
- * @param options - The SDK's server options plus handler extras (`serverInfo`, `verboseLogs`, `onEvent`).
+ * @param options - The SDK's server options plus handler extras (`serverInfo`, `verboseLogs`, `onEvent`, `maxSubscriptions`).
  * @returns A function that can be used to handle MCP requests.
  */
 export default function createMcpRouteHandler(

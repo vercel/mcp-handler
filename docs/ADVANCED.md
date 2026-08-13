@@ -49,6 +49,7 @@ type McpHandlerOptions = ServerOptions & {
   serverInfo?: { name: string; version: string }; // Reported to clients during initialization
   verboseLogs?: boolean; // Enable debug logging
   onEvent?: (event: McpEvent) => void; // Analytics/debugging callback
+  maxSubscriptions?: number; // Maximum subscriptions/listen streams; 0 disables them
 };
 ```
 
