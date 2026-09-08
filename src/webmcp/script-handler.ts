@@ -91,9 +91,10 @@ function buildScript(config: ScriptConfig): string {
   return `(() => {
   "use strict";
   const config = ${configJson};
-  const provider =
-    (typeof navigator !== "undefined" && navigator.modelContext) ||
-    (typeof document !== "undefined" && document.modelContext);
+  const provider = [
+    typeof document !== "undefined" && document.modelContext,
+    typeof navigator !== "undefined" && navigator.modelContext,
+  ].find((candidate) => candidate && typeof candidate.registerTool === "function");
   if (!provider || typeof provider.registerTool !== "function") {
     return;
   }
@@ -101,7 +102,7 @@ function buildScript(config: ScriptConfig): string {
   let protocolVersion = null;
   let requestId = 0;
 
-  async function rpc(method, params, isNotification) {
+  async function rpc(method, params, isNotification, signal) {
     const body = { jsonrpc: "2.0", method };
     if (params !== undefined) body.params = params;
     if (!isNotification) body.id = ++requestId;
@@ -115,6 +116,7 @@ function buildScript(config: ScriptConfig): string {
       credentials: config.credentials,
       headers,
       body: JSON.stringify(body),
+      signal,
     });
     if (isNotification) return null;
     if (!res.ok) {
@@ -173,17 +175,27 @@ function buildScript(config: ScriptConfig): string {
     protocolVersion = (init && init.protocolVersion) || "2025-06-18";
     await rpc("notifications/initialized", undefined, true).catch(() => null);
 
-    const listed = await rpc("tools/list", {});
-    for (const tool of (listed && listed.tools) || []) {
-      if (!config.tools.includes(tool.name)) continue;
-      provider.registerTool({
-        name: tool.name,
-        description: tool.description || tool.title || "",
-        inputSchema: tool.inputSchema,
-        execute: (args) =>
-          rpc("tools/call", { name: tool.name, arguments: args || {} }),
-      });
-    }
+    let cursor;
+    do {
+      const listed = await rpc("tools/list", cursor ? { cursor } : {});
+      for (const tool of (listed && listed.tools) || []) {
+        if (!config.tools.includes(tool.name)) continue;
+        try {
+          await provider.registerTool({
+            name: tool.name,
+            title: tool.title || tool.annotations?.title || tool.name,
+            description: tool.description || tool.title || tool.annotations?.title || tool.name,
+            inputSchema: tool.inputSchema,
+            annotations: { readOnlyHint: tool.annotations?.readOnlyHint === true },
+            execute: (args, options) =>
+              rpc("tools/call", { name: tool.name, arguments: args || {} }, false, options?.signal),
+          });
+        } catch (error) {
+          console.warn("[mcp-handler/webmcp] failed to register tool " + tool.name + ":", error);
+        }
+      }
+      cursor = listed && listed.nextCursor;
+    } while (cursor);
   })().catch((error) => {
     console.warn("[mcp-handler/webmcp] failed to register tools:", error);
   });
