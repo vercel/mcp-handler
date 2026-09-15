@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { withMcpAuth } from "../src/index";
-import { experimental_createWebMcpScriptHandler } from "../src/webmcp";
+import { createWebMcpScriptHandler } from "../src/webmcp/script-handler";
 
 type Tool = {
   name: string;
@@ -54,7 +54,7 @@ async function runScript({
     await register(tool);
     registered.push(tool);
   });
-  const script = await experimental_createWebMcpScriptHandler({
+  const script = await createWebMcpScriptHandler({
     endpoint: "/api/mcp",
     tools: tools.map((tool) => tool.name),
   })(new Request("https://example.com/webmcp.js")).text();

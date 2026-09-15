@@ -1,6 +1,6 @@
 // Re-export the framework-agnostic HTTP adapter
 export { default as createMcpHandler } from "./handler";
-export type { McpHandlerOptions } from "./handler";
+export type { McpHandlerOptions, WebMcpOptions } from "./handler";
 
 /**
  * @deprecated Use withMcpAuth instead

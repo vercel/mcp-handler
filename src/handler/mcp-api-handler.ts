@@ -10,6 +10,12 @@ import type {
   McpErrorEvent,
 } from "../lib/log-helper";
 import { createEvent } from "../lib/log-helper";
+import {
+  createWebMcpScriptHandler,
+  type WebMcpScriptHandlerOptions,
+} from "../webmcp/script-handler";
+
+export type WebMcpOptions = Omit<WebMcpScriptHandlerOptions, "endpoint">;
 
 /**
  * Options for the MCP handler: the SDK's `ServerOptions` (capabilities,
@@ -39,6 +45,14 @@ export type McpHandlerOptions = McpServerOptions & {
    * This can be used to track analytics, debug issues, or implement custom behaviors.
    */
   onEvent?: (event: McpEvent) => void;
+  /**
+   * Publishes an allowlisted subset of this server's tools to in-page agents
+   * through WebMCP. Load the generated bridge from the MCP route with the
+   * `?webmcp-script` query parameter.
+   *
+   * @experimental WebMCP is an early-stage browser API.
+   */
+  experimental_webMcp?: WebMcpOptions;
 };
 
 export function initializeMcpApiHandler(
@@ -55,8 +69,18 @@ export function initializeMcpApiHandler(
     verboseLogs = false,
     onEvent,
     maxSubscriptions,
+    experimental_webMcp,
     ...mcpServerOptions
   } = options;
+
+  // Validate WebMCP configuration when the handler is created rather than on
+  // the first request. The real endpoint is inferred from the script request.
+  if (experimental_webMcp) {
+    createWebMcpScriptHandler({
+      ...experimental_webMcp,
+      endpoint: "/",
+    });
+  }
 
   const emitError = (error: Error) => {
     if (verboseLogs) {
@@ -90,6 +114,20 @@ export function initializeMcpApiHandler(
   );
 
   return async function mcpApiHandler(req: Request): Promise<Response> {
+    if (
+      experimental_webMcp &&
+      (req.method === "GET" || req.method === "HEAD")
+    ) {
+      const scriptUrl = new URL(req.url);
+      if (scriptUrl.searchParams.has("webmcp-script")) {
+        scriptUrl.searchParams.delete("webmcp-script");
+        return createWebMcpScriptHandler({
+          ...experimental_webMcp,
+          endpoint: scriptUrl.toString(),
+        })(req);
+      }
+    }
+
     let method: string | undefined;
     let parsedBody: unknown;
     const started = Date.now();

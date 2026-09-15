@@ -41,7 +41,10 @@ export function nodeToWebHandler(
       }
     }
 
-    const reqUrl = new URL(req.url || "/", "http://localhost");
+    const reqUrl = new URL(
+      req.url || "/",
+      `http://${req.headers.host || "localhost"}`,
+    );
     const webReq = new Request(reqUrl, {
       method: req.method,
       headers: requestHeaders,

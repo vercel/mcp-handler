@@ -3,7 +3,6 @@ import { z } from "zod";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { createMcpHandler } from "../src/index";
-import { experimental_createWebMcpScriptHandler as createWebMcpScriptHandler } from "../src/webmcp";
 import { nodeToWebHandler } from "./helpers";
 
 type RegisteredTool = {
@@ -13,53 +12,58 @@ type RegisteredTool = {
   execute: (args: unknown) => Promise<unknown>;
 };
 
-describe("experimental_createWebMcpScriptHandler", () => {
+describe("createMcpHandler WebMCP option", () => {
   it("serves the bridge script with the embedded allowlist", async () => {
-    const handler = createWebMcpScriptHandler({
-      endpoint: "/api/mcp",
-      tools: ["echo"],
+    const handler = createMcpHandler(() => {}, {
+      experimental_webMcp: { tools: ["echo"] },
     });
-    const res = handler(new Request("http://localhost/webmcp.js"));
+    const res = await handler(
+      new Request("https://example.com/api/mcp?webmcp-script"),
+    );
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe(
       "text/javascript; charset=utf-8",
     );
     const script = await res.text();
-    expect(script).toContain('"endpoint":"/api/mcp"');
+    expect(script).toContain('"endpoint":"https://example.com/api/mcp"');
     expect(script).toContain('"tools":["echo"]');
     expect(script).toContain('"credentials":"same-origin"');
   });
 
   it("escapes config so it cannot break out of an inline script tag", async () => {
-    const handler = createWebMcpScriptHandler({
-      endpoint: "/api/mcp",
-      tools: ["</script><script>alert(1)</script>"],
+    const handler = createMcpHandler(() => {}, {
+      experimental_webMcp: {
+        tools: ["</script><script>alert(1)</script>"],
+      },
     });
-    const script = await handler(
-      new Request("http://localhost/webmcp.js"),
-    ).text();
+    const response = await handler(
+      new Request("http://localhost/api/mcp?webmcp-script"),
+    );
+    const script = await response.text();
     expect(script).not.toContain("</script>");
   });
 
-  it("rejects non-GET requests", () => {
-    const handler = createWebMcpScriptHandler({
-      endpoint: "/api/mcp",
-      tools: [],
+  it("supports HEAD requests and configured cache control", async () => {
+    const handler = createMcpHandler(() => {}, {
+      experimental_webMcp: {
+        tools: [],
+        cacheControl: "private, no-store",
+      },
     });
-    const res = handler(
-      new Request("http://localhost/webmcp.js", { method: "POST" }),
+    const res = await handler(
+      new Request("http://localhost/api/mcp?webmcp-script", {
+        method: "HEAD",
+      }),
     );
-    expect(res.status).toBe(405);
-    expect(res.headers.get("allow")).toBe("GET, HEAD");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("private, no-store");
+    expect(await res.text()).toBe("");
   });
 
   it("requires an explicit tools allowlist", () => {
     expect(() =>
-      createWebMcpScriptHandler({ endpoint: "/api/mcp" } as never),
+      createMcpHandler(() => {}, { experimental_webMcp: {} as never }),
     ).toThrow("`tools` must be an array of tool names");
-    expect(() =>
-      createWebMcpScriptHandler({ tools: ["echo"] } as never),
-    ).toThrow("`endpoint` is required");
   });
 });
 
@@ -68,26 +72,29 @@ describe("webmcp bridge e2e", () => {
   let endpoint: string;
 
   beforeEach(async () => {
-    const mcpHandler = createMcpHandler((server) => {
-      server.registerTool(
-        "echo",
-        {
-          description: "Echo a message",
-          inputSchema: z.object({ message: z.string() }),
-        },
-        async ({ message }) => ({
-          content: [{ type: "text", text: `Tool echo: ${message}` }],
-        }),
-      );
-      server.registerTool(
-        "secret",
-        {
-          description: "Not for the web",
-          inputSchema: z.object({}),
-        },
-        async () => ({ content: [{ type: "text", text: "secret" }] }),
-      );
-    });
+    const mcpHandler = createMcpHandler(
+      (server) => {
+        server.registerTool(
+          "echo",
+          {
+            description: "Echo a message",
+            inputSchema: z.object({ message: z.string() }),
+          },
+          async ({ message }) => ({
+            content: [{ type: "text", text: `Tool echo: ${message}` }],
+          }),
+        );
+        server.registerTool(
+          "secret",
+          {
+            description: "Not for the web",
+            inputSchema: z.object({}),
+          },
+          async () => ({ content: [{ type: "text", text: "secret" }] }),
+        );
+      },
+      { experimental_webMcp: { tools: ["echo"] } },
+    );
 
     server = createServer(nodeToWebHandler(mcpHandler));
     await new Promise<void>((resolve) => {
@@ -102,13 +109,9 @@ describe("webmcp bridge e2e", () => {
   });
 
   async function runBridgeScript(): Promise<RegisteredTool[]> {
-    const scriptHandler = createWebMcpScriptHandler({
-      endpoint,
-      tools: ["echo"],
-    });
-    const script = await scriptHandler(
-      new Request("http://localhost/webmcp.js"),
-    ).text();
+    const script = await fetch(`${endpoint}?webmcp-script`).then((response) =>
+      response.text(),
+    );
 
     const registered: RegisteredTool[] = [];
     const provider = {
@@ -149,13 +152,9 @@ describe("webmcp bridge e2e", () => {
   });
 
   it("is a no-op when no WebMCP provider exists", async () => {
-    const scriptHandler = createWebMcpScriptHandler({
-      endpoint,
-      tools: ["echo"],
-    });
-    const script = await scriptHandler(
-      new Request("http://localhost/webmcp.js"),
-    ).text();
+    const script = await fetch(`${endpoint}?webmcp-script`).then((response) =>
+      response.text(),
+    );
     expect(() =>
       new Function("navigator", "document", script)(undefined, undefined),
     ).not.toThrow();

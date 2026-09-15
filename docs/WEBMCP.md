@@ -2,31 +2,37 @@
 
 > **Experimental.** [WebMCP](https://github.com/webmachinelearning/webmcp) is a W3C Web Machine Learning CG proposal under active development. Chrome offers an [origin trial and local testing flag](https://developer.chrome.com/docs/ai/webmcp#get-started). The API and browser availability may change as the proposal evolves.
 
-WebMCP lets a web page expose tools to in-page AI agents through `document.modelContext`. The bridge also supports the older `navigator.modelContext` surface used by some providers. `mcp-handler/webmcp` serves a small script that lists your MCP endpoint's tools and registers an allowlisted subset with the page's WebMCP provider.
+WebMCP lets a web page expose tools to in-page AI agents through `document.modelContext`. The bridge also supports the older `navigator.modelContext` surface used by some providers. `createMcpHandler` can serve a small script that lists the MCP endpoint's tools and registers an allowlisted subset with the page's WebMCP provider.
 
-Because tool calls run through `fetch` from the page, they carry the user's session cookies — an in-page agent calls your tools *as the signed-in user*, with no OAuth flow.
+Because tool calls run through `fetch` from the page, they can carry the user's session cookies — an in-page agent calls your tools *as the signed-in user*, with no browser-side OAuth flow.
 
 ## Usage
 
-Mount the script endpoint next to your MCP route:
+Enable the bridge on your existing MCP handler:
 
 ```typescript
-// app/webmcp.js/route.ts
-import { experimental_createWebMcpScriptHandler } from "mcp-handler/webmcp";
+// app/api/mcp/route.ts
+import { createMcpHandler } from "mcp-handler";
 
-const handler = experimental_createWebMcpScriptHandler({
-  endpoint: "/api/mcp",
-  // Only these tools are exposed to in-page agents.
-  tools: ["roll_dice", "search_docs"],
-});
+const handler = createMcpHandler(
+  (server) => {
+    // Register your MCP tools here.
+  },
+  {
+    experimental_webMcp: {
+      // Only these tools are exposed to in-page agents.
+      tools: ["roll_dice", "search_docs"],
+    },
+  },
+);
 
-export { handler as GET };
+export { handler as GET, handler as POST };
 ```
 
 Then include it in your page:
 
 ```html
-<script src="/webmcp.js" async></script>
+<script src="/api/mcp?webmcp-script" async></script>
 ```
 
 In a browser (or polyfill) with a WebMCP provider, the script initializes against the MCP endpoint, lists tools, and registers each allowlisted tool with `modelContext.registerTool()`, forwarding `execute` calls to `tools/call`. Without a provider it is a no-op.
@@ -35,7 +41,7 @@ Load any polyfill before the bridge script. For scripts that depend on each othe
 
 ```html
 <script src="/your-webmcp-polyfill.js" defer></script>
-<script src="/webmcp.js" defer></script>
+<script src="/api/mcp?webmcp-script" defer></script>
 ```
 
 ## Compatibility and behavior
@@ -56,7 +62,6 @@ For tools that need WebMCP-specific output-trust or consequential-action hints, 
 
 | Option | Required | Default | Description |
 | --- | --- | --- | --- |
-| `endpoint` | yes | — | URL or path of the MCP endpoint the script talks to. |
 | `tools` | yes | — | Allowlist of tool names exposed to the page. Tools not listed are never registered. |
 | `credentials` | no | `"same-origin"` | Credentials mode for the fetches issued from the page (`"same-origin"`, `"include"`, `"omit"`). |
 | `cacheControl` | no | `"public, max-age=300"` | `Cache-Control` header on the script response. |
@@ -65,7 +70,8 @@ For tools that need WebMCP-specific output-trust or consequential-action hints, 
 
 - **The allowlist is deliberate and required.** Any script or agent in the page can invoke registered tools with the user's credentials, so expose only tools that are safe to call on the user's behalf. Prefer read-only tools; treat side-effectful tools like you would a same-site form submission.
 - The allowlist controls what is surfaced to in-page agents — it does not restrict the MCP endpoint itself, which continues to serve its full tool set to regular MCP clients.
-- If your MCP endpoint uses `withMcpAuth` with bearer tokens, the bridged calls will be unauthenticated unless your verifier also accepts session cookies. Cookie-session verification is the natural pairing for this bridge.
+- If your MCP endpoint uses `withMcpAuth` with bearer tokens, the bridged calls will be unauthenticated unless your verifier also accepts session cookies. Cookie-session verification is the natural pairing for this bridge. A bearer-only deployment needs a same-origin session/BFF layer; do not put access tokens in the generated script.
+- Wrapping the handler with `withMcpAuth` also protects `GET /api/mcp?webmcp-script`. This works naturally when the script request carries a valid session cookie. If you want the inert script asset to be public, dispatch that exact `GET` request to the MCP handler before applying auth, while continuing to authenticate every MCP protocol request.
 
 ## Hardening
 
@@ -93,7 +99,7 @@ const handler = withMcpAuth(
 The bridge is a regular same-origin external script, so under a nonce-based CSP (`script-src 'nonce-...' 'strict-dynamic'`) it needs the nonce on its tag like any other script:
 
 ```html
-<script src="/webmcp.js" nonce="<your-request-nonce>" async></script>
+<script src="/api/mcp?webmcp-script" nonce="<your-request-nonce>" async></script>
 ```
 
 For a same-origin MCP endpoint, `connect-src 'self'` covers the tool calls. An absolute endpoint URL on another origin needs an appropriate CSP and CORS policy; the cookie-auth example above deliberately rejects that configuration.
