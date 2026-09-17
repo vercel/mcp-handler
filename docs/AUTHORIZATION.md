@@ -64,6 +64,50 @@ const authHandler = withMcpAuth(handler, verifyToken, {
 export { authHandler as GET, authHandler as POST };
 ```
 
+## Browser session cookies for WebMCP
+
+The WebMCP bridge uses `fetch` with `credentials: "same-origin"` by default, so it automatically sends the session cookie already held by the browser. `verifyToken` receives the full request and can use that cookie when no bearer token is present:
+
+```typescript
+const verifyAuth = async (
+  req: Request,
+  bearerToken?: string,
+): Promise<AuthInfo | undefined> => {
+  // Preserve OAuth support for regular MCP clients.
+  if (bearerToken) return verifyOAuthToken(bearerToken);
+
+  // Only trust browser cookies on same-origin requests.
+  if (req.headers.get("sec-fetch-site") !== "same-origin") return undefined;
+
+  const sessionToken = req.headers
+    .get("cookie")
+    ?.split(";")
+    .map((cookie) => cookie.trim())
+    .find((cookie) => cookie.startsWith("session="))
+    ?.slice("session=".length);
+  if (!sessionToken) return undefined;
+
+  const session = await verifySession(sessionToken);
+  if (!session) return undefined;
+
+  return {
+    token: sessionToken,
+    scopes: ["read:stuff"],
+    clientId: session.userId,
+    extra: { userId: session.userId, authMethod: "cookie" },
+  };
+};
+
+const authHandler = withMcpAuth(handler, verifyAuth, {
+  required: true,
+  requiredScopes: ["read:stuff"],
+});
+```
+
+`verifyOAuthToken` and `verifySession` are calls into your auth provider or session store. Keep the session cookie `HttpOnly`, `Secure`, and `SameSite=Lax` or stricter. Do not return or log `authInfo.token` from a tool.
+
+See the [complete cookie-auth route](../examples/auth-cookie/route.ts) and the [WebMCP bridge guide](WEBMCP.md).
+
 ## OAuth Protected Resource Metadata
 
 Create `app/.well-known/oauth-protected-resource/route.ts`:

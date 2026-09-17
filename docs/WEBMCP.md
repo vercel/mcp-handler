@@ -77,22 +77,9 @@ For tools that need WebMCP-specific output-trust or consequential-action hints, 
 
 ### Gate cookie auth on `Sec-Fetch-Site: same-origin`
 
-For a same-origin MCP endpoint, browsers identify the bridge's tool calls with `Sec-Fetch-Site: same-origin`. If your verifier honors session cookies, reject cookie-authenticated calls from anywhere else while leaving bearer-token clients untouched. Set `required: true` so a rejected or missing session cannot fall through to unauthenticated tool execution:
+For a same-origin MCP endpoint, browsers identify the bridge's tool calls with `Sec-Fetch-Site: same-origin`. If your verifier honors session cookies, reject cookie-authenticated calls from anywhere else while leaving bearer-token clients untouched. Set `required: true` so a rejected or missing session cannot fall through to unauthenticated tool execution.
 
-```typescript
-const handler = withMcpAuth(
-  mcpHandler,
-  async (req, bearerToken) => {
-    // Remote MCP clients: OAuth bearer path.
-    if (bearerToken) return verifyOAuthToken(bearerToken);
-
-    // WebMCP bridge: only honor cookies for same-origin, browser-issued calls.
-    if (req.headers.get("sec-fetch-site") !== "same-origin") return undefined;
-    return verifySessionCookie(req);
-  },
-  { required: true },
-);
-```
+The [complete cookie-auth route](../examples/auth-cookie/route.ts) shows both paths. The browser reuses its existing `HttpOnly` session cookie, while regular MCP clients can still send OAuth bearer tokens. See [Browser session cookies for WebMCP](AUTHORIZATION.md#browser-session-cookies-for-webmcp) for the verifier by itself.
 
 ### CSP nonce for the script tag
 
