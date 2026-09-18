@@ -1,5 +1,11 @@
 # mcp-handler
 
+## 2.2.0
+
+### Minor Changes
+
+- 79aa420: Promote the experimental WebMCP bridge to a minor release.
+
 ## 2.1.2
 
 ### Patch Changes
