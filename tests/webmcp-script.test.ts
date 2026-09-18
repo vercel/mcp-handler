@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
+import { ModuleKind, ScriptTarget, transpileModule } from "typescript";
 import { withMcpAuth } from "../src/index";
 import { createWebMcpScriptHandler } from "../src/webmcp/script-handler";
 
@@ -204,13 +205,21 @@ describe("WebMCP provider contract", () => {
 describe("documented cookie authentication", () => {
   // Execute the actual recipe so removing required:true from the docs regresses this test.
   const docs = readFileSync(
-    new URL("../docs/WEBMCP.md", import.meta.url),
+    new URL("../docs/AUTHORIZATION.md", import.meta.url),
     "utf8",
   );
-  const recipe = docs.match(
-    /```typescript\n(const handler = withMcpAuth\([\s\S]*?)\n```/,
-  )![1];
-  const authInfo = { token: "test-session", clientId: "browser", scopes: [] };
+  const source = docs.match(
+    /## Browser session cookies for WebMCP[\s\S]*?```typescript\n([\s\S]*?)\n```/,
+  )?.[1];
+  if (!source) throw new Error("Cookie-auth documentation example not found");
+  const recipe = transpileModule(source, {
+    compilerOptions: { module: ModuleKind.None, target: ScriptTarget.ES2022 },
+  }).outputText;
+  const authInfo = {
+    token: "test-session",
+    clientId: "browser",
+    scopes: ["read:stuff"],
+  };
 
   it.each([
     { site: "same-origin", cookie: "session=valid", bearer: "", status: 200 },
@@ -226,16 +235,15 @@ describe("documented cookie authentication", () => {
       const mcpHandler = vi.fn(() => new Response("tool ran"));
       const handler = new Function(
         "withMcpAuth",
-        "mcpHandler",
+        "handler",
         "verifyOAuthToken",
-        "verifySessionCookie",
-        `${recipe}\nreturn handler;`,
+        "verifySession",
+        `${recipe}\nreturn authHandler;`,
       )(
         withMcpAuth,
         mcpHandler,
         (token: string) => (token === "valid" ? authInfo : undefined),
-        (req: Request) =>
-          req.headers.get("cookie") === "session=valid" ? authInfo : undefined,
+        (token: string) => (token === "valid" ? authInfo : undefined),
       );
       const response = await handler(
         new Request("https://example.com/api/mcp", {
