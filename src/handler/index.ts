@@ -1,10 +1,11 @@
 import {
   initializeMcpApiHandler,
   type McpHandlerOptions,
+  type WebMcpOptions,
 } from "./mcp-api-handler";
 import type { McpServer } from "@modelcontextprotocol/server";
 
-export type { McpHandlerOptions };
+export type { McpHandlerOptions, WebMcpOptions };
 
 /**
  * Creates a MCP handler that can be used to handle MCP requests.
@@ -15,7 +16,7 @@ export type { McpHandlerOptions };
  * Hono, Nitro, ...).
  *
  * @param initializeServer - A function that initializes the MCP server. Use this to access the server instance and register tools, prompts, and resources.
- * @param options - The SDK's server options plus handler extras (`serverInfo`, `verboseLogs`, `onEvent`, `maxSubscriptions`).
+ * @param options - The SDK's server options plus handler extras (`serverInfo`, `verboseLogs`, `onEvent`, `maxSubscriptions`, `experimental_webMcp`).
  * @returns A function that can be used to handle MCP requests.
  */
 export default function createMcpRouteHandler(
